@@ -274,7 +274,7 @@ class JobCreatedEventV2(DomainEvent):
 
 ### 1. UserAuthenticated
 
-**Service**: auth-service  
+**Service**: auth_service  
 **Trigger**: User successfully logs in  
 **Purpose**: Notify other services of successful authentication
 
@@ -306,7 +306,7 @@ auth_event = UserAuthenticatedEvent(
     aggregate_id="user_123",
     aggregate_type="User",
     metadata=EventMetadata(
-        source_service="auth-service",
+        source_service="auth_service",
         user_id="user_123",
         request_id="req_456",
         correlation_id="corr_789"
@@ -329,7 +329,7 @@ auth_event = UserAuthenticatedEvent(
         "correlation_id": "corr_789",
         "causation_id": "",
         "timestamp": "2026-05-15T10:30:00",
-        "source_service": "auth-service",
+        "source_service": "auth_service",
         "event_version": "1.0",
         "user_id": "user_123",
         "request_id": "req_456",
@@ -348,9 +348,9 @@ auth_event = UserAuthenticatedEvent(
 
 ### 2. JobCreated
 
-**Service**: api-service  
+**Service**: api_service  
 **Trigger**: User submits a processing job  
-**Purpose**: Notify ai-worker to start processing and notification-service to track
+**Purpose**: Notify ai_worker to start processing and notification_service to track
 
 ```python
 @dataclass
@@ -382,7 +382,7 @@ job_event = JobCreatedEvent(
     aggregate_id="job_123",
     aggregate_type="Job",
     metadata=EventMetadata(
-        source_service="api-service",
+        source_service="api_service",
         user_id="user_123",
         request_id="req_456",
         correlation_id="corr_789"
@@ -409,7 +409,7 @@ job_event = JobCreatedEvent(
         "correlation_id": "corr_789",
         "causation_id": "",
         "timestamp": "2026-05-15T10:35:00",
-        "source_service": "api-service",
+        "source_service": "api_service",
         "event_version": "1.0",
         "user_id": "user_123",
         "request_id": "req_456",
@@ -432,9 +432,9 @@ job_event = JobCreatedEvent(
 
 ### 3. JobCompleted
 
-**Service**: ai-worker  
+**Service**: ai_worker  
 **Trigger**: Processing job finishes successfully  
-**Purpose**: Notify api-service and notification-service of completion
+**Purpose**: Notify api_service and notification_service of completion
 
 ```python
 @dataclass
@@ -468,7 +468,7 @@ completion_event = JobCompletedEvent(
     aggregate_id="job_123",
     aggregate_type="Job",
     metadata=EventMetadata(
-        source_service="ai-worker",
+        source_service="ai_worker",
         user_id="user_123",
         causation_id="evt_abc123",  # Caused by JobCreatedEvent
         correlation_id="corr_789",  # Same correlation as original request
@@ -508,7 +508,7 @@ completion_event = JobCompletedEvent(
         "correlation_id": "corr_789",
         "causation_id": "evt_abc123",
         "timestamp": "2026-05-15T10:37:32.123",
-        "source_service": "ai-worker",
+        "source_service": "ai_worker",
         "event_version": "1.0",
         "user_id": "user_123",
         "request_id": "req_456",
@@ -546,25 +546,25 @@ completion_event = JobCompletedEvent(
 Correlation IDs enable request tracing across all services.
 
 ```
-User Request → api-service (correlation_id: corr_789)
+User Request → api_service (correlation_id: corr_789)
                    ↓
                 Creates Job (JobCreatedEvent with corr_789)
                    ↓
                 RabbitMQ publishes with corr_789
                    ↓
-                ai-worker subscribes, receives corr_789
+                ai_worker subscribes, receives corr_789
                    ↓
                 Processes job, emits JobCompletedEvent with corr_789
                    ↓
-                notification-service receives with corr_789
+                notification_service receives with corr_789
                    ↓
                 Sends notification with corr_789 in logs
 
 # Full trace in logs:
-2026-05-15 10:35:00 [corr_789] api-service: Job created
-2026-05-15 10:35:01 [corr_789] ai-worker: Processing started
-2026-05-15 10:37:32 [corr_789] ai-worker: Processing completed
-2026-05-15 10:37:33 [corr_789] notification-service: Email sent
+2026-05-15 10:35:00 [corr_789] api_service: Job created
+2026-05-15 10:35:01 [corr_789] ai_worker: Processing started
+2026-05-15 10:37:32 [corr_789] ai_worker: Processing completed
+2026-05-15 10:37:33 [corr_789] notification_service: Email sent
 ```
 
 ## Event Publishing Implementation

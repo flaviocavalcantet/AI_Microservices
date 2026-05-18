@@ -22,7 +22,7 @@ shared/{module}/tests/unit/
 ### Example: Testing a Domain Entity
 
 ```python
-# services/api-service/tests/unit/domain/test_user.py
+# services/api_service/tests/unit/domain/test_user.py
 import pytest
 from services.api_service.domain.entities.user import User
 
@@ -68,7 +68,7 @@ shared/{module}/tests/integration/
 ### Example: Testing a Use Case
 
 ```python
-# services/api-service/tests/integration/application/test_create_user_use_case.py
+# services/api_service/tests/integration/application/test_create_user_use_case.py
 import pytest
 from unittest.mock import Mock
 from services.api_service.application.use_cases.create_user_use_case import CreateUserUseCase
@@ -122,7 +122,7 @@ services/{service}/tests/e2e/
 ### Example: Testing an API Endpoint
 
 ```python
-# services/api-service/tests/e2e/test_user_api.py
+# services/api_service/tests/e2e/test_user_api.py
 import pytest
 from flask import Flask
 
@@ -172,7 +172,7 @@ pytest -m integration
 
 ### Specific Service
 ```bash
-pytest services/api-service/tests/
+pytest services/api_service/tests/
 ```
 
 ### With Coverage Report

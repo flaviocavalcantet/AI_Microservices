@@ -9,14 +9,14 @@
 ```
 AI_MICROSERVICES/
 ├── services/                    # Microservices
-│   ├── api-service/            # API gateway
-│   ├── auth-service/           # Authentication
-│   ├── ai-worker/              # AI processing
-│   └── notification-service/   # Notifications
+│   ├── api_service/            # API gateway
+│   ├── auth_service/           # Authentication
+│   ├── ai_worker/              # AI processing
+│   └── notification_service/   # Notifications
 ├── shared/                      # Shared libraries
-│   ├── shared-kernel/          # Core abstractions
-│   ├── shared-events/          # Event definitions
-│   └── shared-utils/           # Utilities
+│   ├── shared_kernel/          # Core abstractions
+│   ├── shared_events/          # Event definitions
+│   └── shared_utils/           # Utilities
 ├── infrastructure/              # Docker & Kubernetes
 ├── scripts/                     # Developer tools
 ├── docs/                        # Documentation
@@ -97,7 +97,7 @@ pytest -m unit
 pytest -m integration
 
 # Specific service
-pytest services/api-service/tests
+pytest services/api_service/tests
 
 # With coverage
 pytest --cov=services --cov-report=html
@@ -236,7 +236,7 @@ git checkout -b feature/my-feature
 
 # Make changes
 git add .
-git commit -m "feat(api-service): add user endpoint"
+git commit -m "feat(api_service): add user endpoint"
 
 # Push to remote
 git push origin feature/my-feature
@@ -268,7 +268,7 @@ pytest --cache-clear
 pytest -vv
 
 # Run specific test
-pytest services/api-service/tests/test_file.py::TestClass::test_method
+pytest services/api_service/tests/test_file.py::TestClass::test_method
 ```
 
 ### Import Errors

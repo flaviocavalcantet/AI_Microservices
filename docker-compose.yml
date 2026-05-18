@@ -1,55 +1,62 @@
-version: '3.8'
-
 # Production-grade local development stack for AI-Enabled Distributed Backend
-# Services: api-service, auth-service, ai-worker, notification-service
+# Services: api_service, auth_service, ai_worker, notification_service
 # Infrastructure: MongoDB, RabbitMQ, Redis (optional)
 
+
 services:
-  # MongoDB: Primary datastore for all services
   mongodb:
     image: mongo:7.0
     container_name: ai_platform_mongodb
     ports:
       - "27017:27017"
     environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGODB_USER:-admin}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGODB_PASSWORD:-admin123}
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin123
       MONGO_INITDB_DATABASE: ai_platform
     volumes:
       - mongodb_data:/data/db
-      - ./infrastructure/docker/mongo-init.js:/docker-entrypoint-initdb.d/init.js
+      - ./infrastructure/docker/mongo-init.js:/docker-entrypoint-initdb.d/init.js:ro
     networks:
       - ai_network
     healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      test:
+        [
+          "CMD",
+          "mongosh",
+          "-u",
+          "admin",
+          "-p",
+          "admin123",
+          "--authenticationDatabase",
+          "admin",
+          "--eval",
+          "db.adminCommand('ping')"
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
     restart: unless-stopped
 
-  # RabbitMQ: Message broker for event-driven communication
   rabbitmq:
     image: rabbitmq:3.13-management
     container_name: ai_platform_rabbitmq
     ports:
-      - "5672:5672"      # AMQP port
-      - "15672:15672"    # Management UI
+      - "5672:5672"
+      - "15672:15672"
     environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
-      RABBITMQ_DEFAULT_VHOST: /
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     networks:
       - ai_network
     healthcheck:
-      test: rabbitmq-diagnostics -q ping
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
     restart: unless-stopped
 
-  # Redis: Caching layer and session store (optional)
   redis:
     image: redis:7-alpine
     container_name: ai_platform_redis
@@ -60,90 +67,78 @@ services:
     networks:
       - ai_network
     healthcheck:
-      test: redis-cli ping
+      test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
     restart: unless-stopped
 
-  # Auth Service: Authentication and authorization
-  auth-service:
+  auth_service:
     build:
       context: .
-      dockerfile: infrastructure/docker/Dockerfile.auth-service
+      dockerfile: infrastructure/docker/Dockerfile.auth_service
     container_name: ai_platform_auth_service
+    working_dir: /app
+    command: python src/main.py
     ports:
       - "5001:5000"
     environment:
-      FLASK_ENV: ${FLASK_ENV:-development}
-      FLASK_APP: services.auth_service.main:create_app
-      MONGODB_URI: mongodb://${MONGODB_USER:-admin}:${MONGODB_PASSWORD:-admin123}@mongodb:27017/auth_service?authSource=admin
-      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672/
-      SERVICE_NAME: auth-service
-      SERVICE_PORT: 5000
-      LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-secret-key-change-in-production}
+      PYTHONPATH: /app/src
+      FLASK_ENV: development
+      MONGODB_URI: mongodb://admin:admin123@mongodb:27017/auth_service?authSource=admin
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
     depends_on:
       mongodb:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+    volumes:
+      - ./services/auth_service:/app
     networks:
       - ai_network
-    volumes:
-      - ./services/auth-service:/app
     restart: unless-stopped
 
-  # API Service: Main API gateway and orchestration
-  api-service:
+  api_service:
     build:
       context: .
-      dockerfile: infrastructure/docker/Dockerfile.api-service
+      dockerfile: infrastructure/docker/Dockerfile.api_service
     container_name: ai_platform_api_service
+    working_dir: /app
+    command: python src/main.py
     ports:
       - "5000:5000"
     environment:
-      FLASK_ENV: ${FLASK_ENV:-development}
-      FLASK_APP: services.api_service.main:create_app
-      MONGODB_URI: mongodb://${MONGODB_USER:-admin}:${MONGODB_PASSWORD:-admin123}@mongodb:27017/api_service?authSource=admin
-      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672/
-      SERVICE_NAME: api-service
-      SERVICE_PORT: 5000
-      LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      AUTH_SERVICE_URL: http://auth-service:5000
-      AI_WORKER_URL: http://ai-worker:5000
+      PYTHONPATH: /app/src
+      FLASK_ENV: development
+      MONGODB_URI: mongodb://admin:admin123@mongodb:27017/api_service?authSource=admin
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
     depends_on:
       mongodb:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-      auth-service:
-        condition: service_started
+    volumes:
+      - ./services/api_service:/app
     networks:
       - ai_network
-    volumes:
-      - ./services/api-service:/app
     restart: unless-stopped
 
-  # AI Worker: Asynchronous AI/ML task processing
-  ai-worker:
+  ai_worker:
     build:
       context: .
-      dockerfile: infrastructure/docker/Dockerfile.ai-worker
+      dockerfile: infrastructure/docker/Dockerfile.ai_worker
     container_name: ai_platform_ai_worker
+    working_dir: /app
+    command: python src/main.py
     ports:
       - "5002:5000"
     environment:
-      FLASK_ENV: ${FLASK_ENV:-development}
-      FLASK_APP: services.ai_worker.main:create_app
-      MONGODB_URI: mongodb://${MONGODB_USER:-admin}:${MONGODB_PASSWORD:-admin123}@mongodb:27017/ai_worker?authSource=admin
-      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672/
-      CELERY_BROKER_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672/
+      PYTHONPATH: /app/src
+      FLASK_ENV: development
+      MONGODB_URI: mongodb://admin:admin123@mongodb:27017/ai_worker?authSource=admin
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      CELERY_BROKER_URL: amqp://guest:guest@rabbitmq:5672/
       CELERY_RESULT_BACKEND: redis://redis:6379/0
-      SERVICE_NAME: ai-worker
-      SERVICE_PORT: 5000
-      LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      MAX_WORKERS: ${AI_WORKER_MAX_WORKERS:-4}
     depends_on:
       mongodb:
         condition: service_healthy
@@ -151,35 +146,28 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    volumes:
+      - ./services/ai_worker:/app
     networks:
       - ai_network
-    volumes:
-      - ./services/ai-worker:/app
-      - ai_worker_cache:/tmp/ai_worker_cache
     restart: unless-stopped
 
-  # Notification Service: Asynchronous notification delivery
-  notification-service:
+  notification_service:
     build:
       context: .
-      dockerfile: infrastructure/docker/Dockerfile.notification-service
+      dockerfile: infrastructure/docker/Dockerfile.notification_service
     container_name: ai_platform_notification_service
+    working_dir: /app
+    command: python src/main.py
     ports:
       - "5003:5000"
     environment:
-      FLASK_ENV: ${FLASK_ENV:-development}
-      FLASK_APP: services.notification_service.main:create_app
-      MONGODB_URI: mongodb://${MONGODB_USER:-admin}:${MONGODB_PASSWORD:-admin123}@mongodb:27017/notification_service?authSource=admin
-      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672/
-      CELERY_BROKER_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672/
+      PYTHONPATH: /app/src
+      FLASK_ENV: development
+      MONGODB_URI: mongodb://admin:admin123@mongodb:27017/notification_service?authSource=admin
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      CELERY_BROKER_URL: amqp://guest:guest@rabbitmq:5672/
       CELERY_RESULT_BACKEND: redis://redis:6379/1
-      SERVICE_NAME: notification-service
-      SERVICE_PORT: 5000
-      LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      EMAIL_SMTP_HOST: ${EMAIL_SMTP_HOST:-smtp.gmail.com}
-      EMAIL_SMTP_PORT: ${EMAIL_SMTP_PORT:-587}
-      EMAIL_SMTP_USER: ${EMAIL_SMTP_USER:-}
-      EMAIL_SMTP_PASSWORD: ${EMAIL_SMTP_PASSWORD:-}
     depends_on:
       mongodb:
         condition: service_healthy
@@ -187,70 +175,56 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    volumes:
+      - ./services/notification_service:/app
     networks:
       - ai_network
-    volumes:
-      - ./services/notification-service:/app
     restart: unless-stopped
 
-  # Celery Worker: Processes async tasks for ai-worker
   celery-worker-ai:
     build:
       context: .
-      dockerfile: infrastructure/docker/Dockerfile.ai-worker
+      dockerfile: infrastructure/docker/Dockerfile.ai_worker
     container_name: ai_platform_celery_worker_ai
-    command: celery -A services.ai_worker.infrastructure.messaging.celery_app worker -l info -c 4
+    working_dir: /app
+    command: celery -A infrastructure.messaging.celery_app worker -l info -c 4
     environment:
-      FLASK_ENV: ${FLASK_ENV:-development}
-      MONGODB_URI: mongodb://${MONGODB_USER:-admin}:${MONGODB_PASSWORD:-admin123}@mongodb:27017/ai_worker?authSource=admin
-      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672/
-      CELERY_BROKER_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672/
+      PYTHONPATH: /app/src
+      CELERY_BROKER_URL: amqp://guest:guest@rabbitmq:5672/
       CELERY_RESULT_BACKEND: redis://redis:6379/0
-      LOG_LEVEL: ${LOG_LEVEL:-INFO}
     depends_on:
       - rabbitmq
       - redis
-      - mongodb
+    volumes:
+      - ./services/ai_worker:/app
     networks:
       - ai_network
-    volumes:
-      - ./services/ai-worker:/app
-      - ai_worker_cache:/tmp/ai_worker_cache
     restart: unless-stopped
 
-  # Celery Worker: Processes async tasks for notification-service
   celery-worker-notification:
     build:
       context: .
-      dockerfile: infrastructure/docker/Dockerfile.notification-service
+      dockerfile: infrastructure/docker/Dockerfile.notification_service
     container_name: ai_platform_celery_worker_notification
-    command: celery -A services.notification_service.infrastructure.messaging.celery_app worker -l info -c 2
+    working_dir: /app
+    command: celery -A infrastructure.messaging.celery_app worker -l info -c 2
     environment:
-      FLASK_ENV: ${FLASK_ENV:-development}
-      MONGODB_URI: mongodb://${MONGODB_USER:-admin}:${MONGODB_PASSWORD:-admin123}@mongodb:27017/notification_service?authSource=admin
-      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672/
-      CELERY_BROKER_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672/
+      PYTHONPATH: /app/src
+      CELERY_BROKER_URL: amqp://guest:guest@rabbitmq:5672/
       CELERY_RESULT_BACKEND: redis://redis:6379/1
-      LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      EMAIL_SMTP_HOST: ${EMAIL_SMTP_HOST:-smtp.gmail.com}
-      EMAIL_SMTP_PORT: ${EMAIL_SMTP_PORT:-587}
-      EMAIL_SMTP_USER: ${EMAIL_SMTP_USER:-}
-      EMAIL_SMTP_PASSWORD: ${EMAIL_SMTP_PASSWORD:-}
     depends_on:
       - rabbitmq
       - redis
-      - mongodb
+    volumes:
+      - ./services/notification_service:/app
     networks:
       - ai_network
-    volumes:
-      - ./services/notification-service:/app
     restart: unless-stopped
 
-  # Celery Flower: Monitoring UI for Celery tasks
   flower:
     image: mher/flower:2.0
     container_name: ai_platform_flower
-    command: celery --broker=amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672// flower --port=5555
+    command: celery --broker=amqp://guest:guest@rabbitmq:5672// flower --port=5555
     ports:
       - "5555:5555"
     depends_on:
@@ -267,12 +241,12 @@ volumes:
   mongodb_data:
   rabbitmq_data:
   redis_data:
-  ai_worker_cache:
+
 
 # Usage:
 # docker-compose up -d              # Start all services
 # docker-compose down               # Stop all services
-# docker-compose logs -f api-service # View api-service logs
+# docker-compose logs -f api_service # View api_service logs
 # docker-compose ps                 # View service status
 # 
 # Service URLs:

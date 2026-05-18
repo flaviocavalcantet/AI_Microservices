@@ -8,7 +8,7 @@ This document explains the folder and file structure of the monorepo, naming con
 AI_MICROSERVICES/
 │
 ├── services/                          # All microservices
-│   ├── api-service/                   # API gateway & orchestration
+│   ├── api_service/                   # API gateway & orchestration
 │   │   ├── src/
 │   │   │   ├── __init__.py
 │   │   │   ├── main.py               # Service entry point
@@ -84,12 +84,12 @@ AI_MICROSERVICES/
 │   │   ├── requirements.txt           # Service dependencies
 │   │   └── README.md                 # Service documentation
 │   │
-│   ├── auth-service/                 # Same structure as api-service
-│   ├── ai-worker/                    # Same structure as api-service
-│   └── notification-service/         # Same structure as api-service
+│   ├── auth_service/                 # Same structure as api_service
+│   ├── ai_worker/                    # Same structure as api_service
+│   └── notification_service/         # Same structure as api_service
 │
 ├── shared/                            # Shared libraries & common code
-│   ├── shared-kernel/                # Core domain abstractions
+│   ├── shared_kernel/                # Core domain abstractions
 │   │   ├── src/
 │   │   │   ├── __init__.py
 │   │   │   ├── entities.py           # Base entity classes
@@ -102,7 +102,7 @@ AI_MICROSERVICES/
 │   │   ├── requirements.txt
 │   │   └── README.md
 │   │
-│   ├── shared-events/                # Event definitions & contracts
+│   ├── shared_events/                # Event definitions & contracts
 │   │   ├── src/
 │   │   │   ├── __init__.py
 │   │   │   ├── base_event.py         # Base event classes
@@ -117,7 +117,7 @@ AI_MICROSERVICES/
 │   │   ├── requirements.txt
 │   │   └── README.md
 │   │
-│   └── shared-utils/                 # Utilities & helpers
+│   └── shared_utils/                 # Utilities & helpers
 │       ├── src/
 │       │   ├── __init__.py
 │       │   ├── logging.py            # Structured logging
@@ -134,18 +134,18 @@ AI_MICROSERVICES/
 │
 ├── infrastructure/                    # Infrastructure & deployment
 │   ├── docker/                        # Docker configuration
-│   │   ├── Dockerfile.api-service
-│   │   ├── Dockerfile.auth-service
-│   │   ├── Dockerfile.ai-worker
-│   │   ├── Dockerfile.notification-service
+│   │   ├── Dockerfile.api_service
+│   │   ├── Dockerfile.auth_service
+│   │   ├── Dockerfile.ai_worker
+│   │   ├── Dockerfile.notification_service
 │   │   └── .dockerignore
 │   │
 │   └── kubernetes/                    # Kubernetes manifests
 │       ├── namespaces.yaml
-│       ├── api-service.yaml
-│       ├── auth-service.yaml
-│       ├── ai-worker.yaml
-│       ├── notification-service.yaml
+│       ├── api_service.yaml
+│       ├── auth_service.yaml
+│       ├── ai_worker.yaml
+│       ├── notification_service.yaml
 │       └── monitoring/
 │
 ├── config/                            # Configuration & environment
@@ -271,7 +271,7 @@ from infrastructure.persistence.mongo.user_repository import MongoUserRepository
 domain/
 ├── entities/
 │   ├── __init__.py
-│   ├── base.py                    # Base entity class (use shared-kernel)
+│   ├── base.py                    # Base entity class (use shared_kernel)
 │   ├── user.py                    # User entity with business logic
 │   ├── email.py                   # Value object for email
 │   └── user_status.py             # Enum or value object
@@ -446,21 +446,21 @@ tests/e2e/test_new_feature_api.py
 
 ## Shared Code Guidelines
 
-### When to Use shared-kernel
+### When to Use shared_kernel
 
 - Base entity and value object classes
 - Common repository interfaces
 - Standard exception classes
 - Common domain patterns
 
-### When to Use shared-events
+### When to Use shared_events
 
 - Domain event definitions
 - Integration event schemas
 - Event serialization logic
 - Event registry
 
-### When to Use shared-utils
+### When to Use shared_utils
 
 - Logging utilities
 - String, date, collection helpers

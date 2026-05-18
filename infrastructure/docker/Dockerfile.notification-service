@@ -1,23 +1,23 @@
 # Notification Service Dockerfile
-FROM python:3.12-slim as builder
+FROM python:3.11-slim-bookworm as builder
 
 WORKDIR /build
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential gcc && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
-COPY services/notification-service/requirements.txt ./notification-service/
+COPY services/notification_service/requirements.txt ./notification_service/
 
 RUN python -m venv /opt/venv && \
     . /opt/venv/bin/activate && \
     pip install --no-cache-dir --upgrade pip setuptools wheel && \
     pip install --no-cache-dir -r requirements.txt && \
-    pip install --no-cache-dir -r ./notification-service/requirements.txt
+    pip install --no-cache-dir -r ./notification_service/requirements.txt
 
-FROM python:3.12-slim
+FROM python:3.11-slim-bookworm
 
 LABEL maintainer="AI Platform Team"
-LABEL service="notification-service"
+LABEL service="notification_service"
 
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends curl && \

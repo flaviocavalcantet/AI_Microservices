@@ -57,11 +57,11 @@ mypy services shared --ignore-missing-imports
 
 **Types**: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`
 
-**Scopes**: `api-service`, `auth-service`, `ai-worker`, `notification-service`, `shared-kernel`
+**Scopes**: `api_service`, `auth_service`, `ai_worker`, `notification_service`, `shared_kernel`
 
 **Example:**
 ```
-feat(api-service): add pagination to requests endpoint
+feat(api_service): add pagination to requests endpoint
 
 - Implement limit and offset parameters
 - Add validation for pagination values
@@ -82,7 +82,7 @@ pytest
 pytest --cov=services --cov=shared
 
 # Specific test
-pytest services/api-service/tests/unit/domain/test_user.py -v
+pytest services/api_service/tests/unit/domain/test_user.py -v
 ```
 
 ## Pull Request Process
@@ -107,10 +107,10 @@ Dependencies flow inward. Domain has no external dependencies.
 
 ### Service Boundaries
 
-- **api-service**: Orchestration and API gateway
-- **auth-service**: Authentication and authorization
-- **ai-worker**: AI/ML processing
-- **notification-service**: Asynchronous notifications
+- **api_service**: Orchestration and API gateway
+- **auth_service**: Authentication and authorization
+- **ai_worker**: AI/ML processing
+- **notification_service**: Asynchronous notifications
 
 Services communicate via:
 - **RabbitMQ**: Event-driven asynchronous

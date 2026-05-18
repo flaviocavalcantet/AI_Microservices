@@ -6,7 +6,7 @@
 AI_MICROSERVICES/
 │
 ├── services/
-│   ├── api-service/
+│   ├── api_service/
 │   │   ├── src/
 │   │   │   ├── __init__.py
 │   │   │   ├── main.py
@@ -43,23 +43,23 @@ AI_MICROSERVICES/
 │   │   ├── requirements.txt
 │   │   └── Dockerfile (via infrastructure/docker/)
 │   │
-│   ├── auth-service/
+│   ├── auth_service/
 │   │   ├── src/
 │   │   ├── tests/
 │   │   └── requirements.txt
 │   │
-│   ├── ai-worker/
+│   ├── ai_worker/
 │   │   ├── src/
 │   │   ├── tests/
 │   │   └── requirements.txt
 │   │
-│   └── notification-service/
+│   └── notification_service/
 │       ├── src/
 │       ├── tests/
 │       └── requirements.txt
 │
 ├── shared/
-│   ├── shared-kernel/
+│   ├── shared_kernel/
 │   │   ├── src/
 │   │   │   ├── __init__.py
 │   │   │   ├── entities.py
@@ -72,7 +72,7 @@ AI_MICROSERVICES/
 │   │   ├── requirements.txt
 │   │   └── README.md
 │   │
-│   ├── shared-events/
+│   ├── shared_events/
 │   │   ├── src/
 │   │   │   ├── __init__.py
 │   │   │   ├── base_event.py
@@ -85,7 +85,7 @@ AI_MICROSERVICES/
 │   │   ├── requirements.txt
 │   │   └── README.md
 │   │
-│   └── shared-utils/
+│   └── shared_utils/
 │       ├── src/
 │       │   ├── __init__.py
 │       │   ├── logging.py
@@ -102,18 +102,18 @@ AI_MICROSERVICES/
 │
 ├── infrastructure/
 │   ├── docker/
-│   │   ├── Dockerfile.api-service
-│   │   ├── Dockerfile.auth-service
-│   │   ├── Dockerfile.ai-worker
-│   │   ├── Dockerfile.notification-service
+│   │   ├── Dockerfile.api_service
+│   │   ├── Dockerfile.auth_service
+│   │   ├── Dockerfile.ai_worker
+│   │   ├── Dockerfile.notification_service
 │   │   └── .dockerignore
 │   │
 │   └── kubernetes/
 │       ├── namespaces.yaml
-│       ├── api-service.yaml
-│       ├── auth-service.yaml
-│       ├── ai-worker.yaml
-│       ├── notification-service.yaml
+│       ├── api_service.yaml
+│       ├── auth_service.yaml
+│       ├── ai_worker.yaml
+│       ├── notification_service.yaml
 │       ├── mongodb.yaml
 │       ├── rabbitmq.yaml
 │       └── network-policies.yaml
@@ -178,7 +178,7 @@ AI_MICROSERVICES/
 - Request routing and load balancing
 - Response formatting and error handling
 
-**Dependencies**: auth-service, ai-worker, notification-service
+**Dependencies**: auth_service, ai_worker, notification_service
 
 ---
 
@@ -225,7 +225,7 @@ AI_MICROSERVICES/
 
 ## Shared Modules Overview
 
-### shared-kernel
+### shared_kernel
 Core domain abstractions used across all services:
 - `BaseEntity`: Foundation for domain entities
 - `ValueObject`: Immutable domain objects
@@ -233,7 +233,7 @@ Core domain abstractions used across all services:
 - `DomainException`: Base exception class
 - Common domain patterns and utilities
 
-### shared-events
+### shared_events
 Event definitions and contracts for inter-service communication:
 - `DomainEvent`: Events from domain layer
 - `IntegrationEvent`: Events for cross-service communication
@@ -241,7 +241,7 @@ Event definitions and contracts for inter-service communication:
 - Event serialization/deserialization
 - Event schema definitions
 
-### shared-utils
+### shared_utils
 Cross-cutting utilities and helpers:
 - Structured logging utilities
 - Custom exception classes

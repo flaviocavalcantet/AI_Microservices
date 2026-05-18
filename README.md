@@ -60,7 +60,7 @@ Presentation → Application → Domain ← Infrastructure
 
 ## Services
 
-### api-service
+### api_service
 **Responsibility**: API gateway and orchestration service
 
 - RESTful API endpoints
@@ -70,7 +70,7 @@ Presentation → Application → Domain ← Infrastructure
 
 **Tech Stack**: Flask, Flask-RESTful, PyJWT
 
-### auth-service
+### auth_service
 **Responsibility**: Authentication and Authorization
 
 - User registration and login
@@ -80,7 +80,7 @@ Presentation → Application → Domain ← Infrastructure
 
 **Tech Stack**: Flask, PyJWT, bcrypt, python-jose
 
-### ai-worker
+### ai_worker
 **Responsibility**: AI/ML Workload Processing
 
 - Long-running inference and training tasks
@@ -90,7 +90,7 @@ Presentation → Application → Domain ← Infrastructure
 
 **Tech Stack**: Flask, Celery, scikit-learn, TensorFlow/PyTorch (optional)
 
-### notification-service
+### notification_service
 **Responsibility**: Asynchronous Notifications
 
 - Email notifications
@@ -102,7 +102,7 @@ Presentation → Application → Domain ← Infrastructure
 
 ## Shared Modules
 
-### shared-kernel
+### shared_kernel
 **Responsibility**: Core domain abstractions
 
 - Base Entity and Value Object classes
@@ -110,7 +110,7 @@ Presentation → Application → Domain ← Infrastructure
 - Repository interfaces
 - Service locator patterns
 
-### shared-events
+### shared_events
 **Responsibility**: Event definitions and contracts
 
 - Domain event base classes
@@ -118,7 +118,7 @@ Presentation → Application → Domain ← Infrastructure
 - Event registry
 - Event serialization/deserialization
 
-### shared-utils
+### shared_utils
 **Responsibility**: Cross-cutting utilities
 
 - Logging and tracing
@@ -131,20 +131,20 @@ Presentation → Application → Domain ← Infrastructure
 ```
 AI_MICROSERVICES/
 ├── services/
-│   ├── api-service/
-│   ├── auth-service/
-│   ├── ai-worker/
-│   └── notification-service/
+│   ├── api_service/
+│   ├── auth_service/
+│   ├── ai_worker/
+│   └── notification_service/
 ├── shared/
-│   ├── shared-kernel/
-│   ├── shared-events/
-│   └── shared-utils/
+│   ├── shared_kernel/
+│   ├── shared_events/
+│   └── shared_utils/
 ├── infrastructure/
 │   ├── docker/
-│   │   ├── Dockerfile.api-service
-│   │   ├── Dockerfile.auth-service
-│   │   ├── Dockerfile.ai-worker
-│   │   └── Dockerfile.notification-service
+│   │   ├── Dockerfile.api_service
+│   │   ├── Dockerfile.auth_service
+│   │   ├── Dockerfile.ai_worker
+│   │   └── Dockerfile.notification_service
 │   └── kubernetes/
 ├── config/
 │   └── environments/
@@ -204,7 +204,7 @@ python -m services.api_service.main
 pytest
 
 # Specific service
-pytest services/api-service/tests
+pytest services/api_service/tests
 
 # With coverage
 pytest --cov=services --cov-report=html
@@ -214,8 +214,8 @@ pytest --cov=services --cov-report=html
 
 1. **Feature Development**: Implement in the appropriate service layer
 2. **Testing**: Write tests in `/tests` following the layer structure
-3. **Events**: Define domain/integration events in `shared-events`
-4. **Shared Code**: Extract to `shared-kernel` or `shared-utils` as needed
+3. **Events**: Define domain/integration events in `shared_events`
+4. **Shared Code**: Extract to `shared_kernel` or `shared_utils` as needed
 5. **Documentation**: Update relevant docs in `/docs`
 
 ## Environment Configuration
@@ -265,7 +265,7 @@ See [DEPLOYMENT.md](docs/DEPLOYMENT.md) for:
 ```
 
 Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`
-Scopes: `api-service`, `auth-service`, `ai-worker`, `notification-service`, `shared-kernel`
+Scopes: `api_service`, `auth_service`, `ai_worker`, `notification_service`, `shared_kernel`
 
 ## License
 

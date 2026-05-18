@@ -65,7 +65,7 @@ Stores user requests for processing.
   "title": "Analyze customer data",
   "description": "Analyze Q1 customer behavior",
   "input_data": { /* arbitrary JSON */ },
-  "output_data": { /* result from ai-worker */ },
+  "output_data": { /* result from ai_worker */ },
   "status": "processing",  // pending, processing, completed, failed
   "priority": "high",  // low, medium, high
   "error_message": null,
@@ -188,7 +188,7 @@ Event log for audit trail and event replay.
 {
   "_id": ObjectId,
   "event_type": "user_created",
-  "service": "auth-service",
+  "service": "auth_service",
   "aggregate_id": ObjectId,  // user_id, request_id, etc.
   "aggregate_type": "User",
   "version": 1,

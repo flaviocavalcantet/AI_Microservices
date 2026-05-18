@@ -214,7 +214,7 @@ GET /health
 ```json
 {
   "status": "healthy",
-  "service": "api-service",
+  "service": "api_service",
   "version": "1.0.0",
   "timestamp": "2026-05-15T10:30:00Z",
   "dependencies": {

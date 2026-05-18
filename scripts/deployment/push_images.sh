@@ -11,7 +11,7 @@ VERSION="${VERSION:-latest}"
 
 echo "Pushing Docker images to $REGISTRY/$NAMESPACE..."
 
-SERVICES=("api-service" "auth-service" "ai-worker" "notification-service")
+SERVICES=("api_service" "auth_service" "ai_worker" "notification_service")
 
 for service in "${SERVICES[@]}"; do
     image_name="$REGISTRY/$NAMESPACE/$service:$VERSION"

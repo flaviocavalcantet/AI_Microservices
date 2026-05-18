@@ -32,7 +32,7 @@ Benefits:
 
 ## 2. Service Responsibilities
 
-### api-service
+### api_service
 
 **Purpose**: Main entry point and API gateway
 
@@ -47,15 +47,15 @@ Benefits:
 - `ProcessingCompleted`
 
 **Integration Events Consumed**:
-- `UserAuthenticated` (from auth-service)
-- `ProcessingResult` (from ai-worker)
+- `UserAuthenticated` (from auth_service)
+- `ProcessingResult` (from ai_worker)
 
 **Dependencies**:
-- auth-service (for validation)
-- ai-worker (for processing)
-- notification-service (for feedback)
+- auth_service (for validation)
+- ai_worker (for processing)
+- notification_service (for feedback)
 
-### auth-service
+### auth_service
 
 **Purpose**: Identity and access management
 
@@ -70,9 +70,9 @@ Benefits:
 - `UserAuthenticated`
 - `PermissionGranted`
 
-**No External Service Dependencies**: Auth-service is independent
+**No External Service Dependencies**: auth_service is independent
 
-### ai-worker
+### ai_worker
 
 **Purpose**: Long-running AI/ML tasks
 
@@ -88,13 +88,13 @@ Benefits:
 - `ProcessingFailed`
 
 **Integration Events Consumed**:
-- `ProcessingRequested` (from api-service)
+- `ProcessingRequested` (from api_service)
 
 **Dependencies**:
 - Uses Celery for task queuing
 - MongoDB for result storage
 
-### notification-service
+### notification_service
 
 **Purpose**: Asynchronous user notifications
 
@@ -105,10 +105,10 @@ Benefits:
 - Delivery status tracking
 
 **Integration Events Consumed**:
-- `ProcessingCompleted` (from ai-worker)
-- `UserRegistered` (from auth-service)
+- `ProcessingCompleted` (from ai_worker)
+- `UserRegistered` (from auth_service)
 
-**No Service Dependencies**: Notification-service is read-only (consumes events)
+**No Service Dependencies**: notification_service is read-only (consumes events)
 
 ## 3. Data Flow Patterns
 
@@ -117,11 +117,11 @@ Benefits:
 ```
 Client HTTP Request
     ↓
-api-service (Presentation Layer)
+api_service (Presentation Layer)
     ↓
-api-service (Application Layer - Use Case)
+api_service (Application Layer - Use Case)
     ↓
-api-service (Domain Layer - Business Logic)
+api_service (Domain Layer - Business Logic)
     ↓
 Infrastructure Layer (DB, External Services)
     ↓
@@ -275,9 +275,9 @@ Each service can run multiple instances:
 
 ```yaml
 services:
-  api-service:
+  api_service:
     replicas: 3  # Scale independently
-  ai-worker:
+  ai_worker:
     replicas: 5  # More workers for compute tasks
 ```
 
@@ -341,7 +341,7 @@ JSON-formatted logs:
 {
   "timestamp": "2026-05-15T10:30:00Z",
   "level": "INFO",
-  "service": "api-service",
+  "service": "api_service",
   "user_id": "123",
   "action": "create_user",
   "duration_ms": 245,
@@ -369,10 +369,10 @@ Prometheus metrics:
 Docker Compose (single machine)
 ├── MongoDB
 ├── RabbitMQ
-├── api-service
-├── auth-service
-├── ai-worker
-└── notification-service
+├── api_service
+├── auth_service
+├── ai_worker
+└── notification_service
 ```
 
 ### Production
@@ -381,10 +381,10 @@ Docker Compose (single machine)
 Kubernetes Cluster
 ├── Namespace: backend
 ├── Services:
-│   ├── api-service (deployment × 3)
-│   ├── auth-service (deployment × 2)
-│   ├── ai-worker (deployment × 5)
-│   └── notification-service (deployment × 2)
+│   ├── api_service (deployment × 3)
+│   ├── auth_service (deployment × 2)
+│   ├── ai_worker (deployment × 5)
+│   └── notification_service (deployment × 2)
 ├── StatefulSets:
 │   ├── MongoDB (replication set)
 │   └── RabbitMQ (cluster)
@@ -430,6 +430,6 @@ Kubernetes Cluster
 
 - **GraphQL Gateway**: Alternative to REST API
 - **gRPC Services**: For high-throughput internal communication
-- **CQRS Pattern**: Separate read and write models for ai-worker
+- **CQRS Pattern**: Separate read and write models for ai_worker
 - **Saga Pattern**: Distributed transactions across services
 - **Machine Learning Pipeline**: Data science framework integration

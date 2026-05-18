@@ -1,7 +1,7 @@
 # API Service Dockerfile
 # Multi-stage build for production-grade containerization
 
-FROM python:3.12-slim as builder
+FROM python:3.11-slim-bookworm as builder
 
 # Set working directory
 WORKDIR /build
@@ -14,21 +14,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy dependency files
 COPY requirements.txt .
-COPY services/api-service/requirements.txt ./api-service/
+COPY services/api_service/requirements.txt ./api_service/
 
 # Build Python dependencies in a venv
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
     pip install --no-cache-dir -r requirements.txt && \
-    pip install --no-cache-dir -r ./api-service/requirements.txt
+    pip install --no-cache-dir -r ./api_service/requirements.txt
 
 # Final stage
-FROM python:3.12-slim
+FROM python:3.11-slim-bookworm
 
 # Metadata
 LABEL maintainer="AI Platform Team"
-LABEL service="api-service"
+LABEL service="api_service"
 
 # Set working directory
 WORKDIR /app

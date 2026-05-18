@@ -54,7 +54,7 @@ Flower (Celery): http://localhost:5555
 docker-compose build
 
 # Build specific service
-docker-compose build api-service
+docker-compose build api_service
 
 # Build with no cache
 docker-compose build --no-cache
@@ -88,10 +88,10 @@ Or manually:
 
 ```bash
 # Tag images
-docker tag ai_platform_api-service:latest $REGISTRY/$NAMESPACE/api-service:$VERSION
+docker tag ai_platform_api_service:latest $REGISTRY/$NAMESPACE/api_service:$VERSION
 
 # Push
-docker push $REGISTRY/$NAMESPACE/api-service:$VERSION
+docker push $REGISTRY/$NAMESPACE/api_service:$VERSION
 ```
 
 ## Kubernetes Deployment
@@ -151,10 +151,10 @@ kubectl get pods -n ai-platform
 kubectl get services -n ai-platform
 
 # Check logs
-kubectl logs -f deployment/api-service -n ai-platform
+kubectl logs -f deployment/api_service -n ai-platform
 
 # Port forward for testing
-kubectl port-forward svc/api-service 5000:5000 -n ai-platform
+kubectl port-forward svc/api_service 5000:5000 -n ai-platform
 ```
 
 ### Monitor Deployment
@@ -250,14 +250,14 @@ kubectl get endpoints -n ai-platform
 
 ```bash
 # Scale deployment
-kubectl scale deployment api-service --replicas=3 -n ai-platform
+kubectl scale deployment api_service --replicas=3 -n ai-platform
 ```
 
 ### Auto-scaling
 
 ```bash
 # Create HPA (Horizontal Pod Autoscaler)
-kubectl autoscale deployment api-service --min=2 --max=10 --cpu-percent=80 -n ai-platform
+kubectl autoscale deployment api_service --min=2 --max=10 --cpu-percent=80 -n ai-platform
 
 # View HPA status
 kubectl get hpa -n ai-platform
@@ -269,13 +269,13 @@ kubectl get hpa -n ai-platform
 
 ```bash
 # View deployment history
-kubectl rollout history deployment/api-service -n ai-platform
+kubectl rollout history deployment/api_service -n ai-platform
 
 # Rollback to previous version
-kubectl rollout undo deployment/api-service -n ai-platform
+kubectl rollout undo deployment/api_service -n ai-platform
 
 # Rollback to specific revision
-kubectl rollout undo deployment/api-service --to-revision=2 -n ai-platform
+kubectl rollout undo deployment/api_service --to-revision=2 -n ai-platform
 ```
 
 ### Docker Compose Rollback
@@ -310,10 +310,10 @@ kubectl describe pod <pod-name> -n ai-platform
 
 ```bash
 # Test connectivity between services
-kubectl exec -it <pod-name> -n ai-platform -- curl http://api-service:5000/health
+kubectl exec -it <pod-name> -n ai-platform -- curl http://api_service:5000/health
 
 # Check DNS
-kubectl exec -it <pod-name> -n ai-platform -- nslookup api-service
+kubectl exec -it <pod-name> -n ai-platform -- nslookup api_service
 ```
 
 ### Database Connection Issues
@@ -337,18 +337,18 @@ kubectl exec -it <pod-name> -n ai-platform -- \
 ```bash
 # Blue-green deployment strategy
 # 1. Deploy new version alongside current
-kubectl set image deployment/api-service \
-  api-service=registry/api-service:v2.0 -n ai-platform
+kubectl set image deployment/api_service \
+  api_service=registry/api_service:v2.0 -n ai-platform
 
 # 2. Verify new version
 kubectl get pods -n ai-platform
 
 # 3. Switch traffic
-kubectl get service api-service -n ai-platform
+kubectl get service api_service -n ai-platform
 
 # 4. Remove old version
-kubectl set image deployment/api-service \
-  api-service=registry/api-service:v2.0 -n ai-platform
+kubectl set image deployment/api_service \
+  api_service=registry/api_service:v2.0 -n ai-platform
 ```
 
 ### Backup Data
