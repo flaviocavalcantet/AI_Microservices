@@ -31,8 +31,7 @@ COPY --from=builder /opt/venv /opt/venv
 
 ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    FLASK_APP="services.ai_worker.main:create_app"
+    PYTHONDONTWRITEBYTECODE=1
 
 COPY . .
 
@@ -44,9 +43,9 @@ RUN useradd -m -u 1000 appuser && \
 USER appuser
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:5000/health || exit 1
+    CMD curl -f http://localhost:5000/api/v1/ai/health || exit 1
 
 EXPOSE 5000
 VOLUME ["/tmp/ai_worker_cache"]
 
-CMD ["python", "-m", "services.ai_worker.main"]
+CMD ["python", "-m", "src.main"]

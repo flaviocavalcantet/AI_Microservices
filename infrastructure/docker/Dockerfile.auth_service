@@ -28,7 +28,7 @@ COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    FLASK_APP="services.auth_service.main:create_app"
+    FLASK_APP="src.presentation.app:create_app"
 
 COPY . .
 
@@ -36,7 +36,7 @@ RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:5000/health || exit 1
+    CMD curl -f http://localhost:5000/api/v1/auth/health || exit 1
 
 EXPOSE 5000
-CMD ["python", "-m", "services.auth_service.main"]
+CMD ["python", "-m", "src.main"]

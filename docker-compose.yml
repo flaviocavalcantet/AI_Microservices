@@ -35,6 +35,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 15s
     restart: unless-stopped
 
   rabbitmq:
@@ -44,8 +45,9 @@ services:
       - "5672:5672"
       - "15672:15672"
     environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
+      RABBITMQ_DEFAULT_USER: appuser
+      RABBITMQ_DEFAULT_PASS: apppass123
+      RABBITMQ_DEFAULT_VHOST: /
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     networks:
@@ -55,6 +57,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 15s
     restart: unless-stopped
 
   redis:
@@ -62,6 +65,7 @@ services:
     container_name: ai_platform_redis
     ports:
       - "6379:6379"
+    command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
     networks:
@@ -71,22 +75,23 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
     restart: unless-stopped
 
-  auth_service:
+  auth-service:
     build:
       context: .
       dockerfile: infrastructure/docker/Dockerfile.auth_service
     container_name: ai_platform_auth_service
     working_dir: /app
-    command: python src/main.py
+    command: python -m src.main
     ports:
       - "5001:5000"
     environment:
-      PYTHONPATH: /app/src
+      PYTHONPATH: /app
       FLASK_ENV: development
       MONGODB_URI: mongodb://admin:admin123@mongodb:27017/auth_service?authSource=admin
-      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      RABBITMQ_URL: amqp://appuser:apppass123@rabbitmq:5672/
     depends_on:
       mongodb:
         condition: service_healthy
@@ -94,50 +99,51 @@ services:
         condition: service_healthy
     volumes:
       - ./services/auth_service:/app
+      - ./shared:/app/shared
     networks:
       - ai_network
     restart: unless-stopped
 
-  api_service:
+  api-service:
     build:
       context: .
       dockerfile: infrastructure/docker/Dockerfile.api_service
     container_name: ai_platform_api_service
     working_dir: /app
-    command: python src/main.py
+    command: python -m services.api_service.src.main
     ports:
       - "5000:5000"
     environment:
-      PYTHONPATH: /app/src
+      PYTHONPATH: /app
       FLASK_ENV: development
       MONGODB_URI: mongodb://admin:admin123@mongodb:27017/api_service?authSource=admin
-      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      RABBITMQ_URL: amqp://appuser:apppass123@rabbitmq:5672/
     depends_on:
       mongodb:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
     volumes:
-      - ./services/api_service:/app
+      - ./:/app
     networks:
       - ai_network
     restart: unless-stopped
 
-  ai_worker:
+  ai-worker:
     build:
       context: .
       dockerfile: infrastructure/docker/Dockerfile.ai_worker
     container_name: ai_platform_ai_worker
     working_dir: /app
-    command: python src/main.py
+    command: python -m src.main
     ports:
       - "5002:5000"
     environment:
-      PYTHONPATH: /app/src
+      PYTHONPATH: /app
       FLASK_ENV: development
       MONGODB_URI: mongodb://admin:admin123@mongodb:27017/ai_worker?authSource=admin
-      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
-      CELERY_BROKER_URL: amqp://guest:guest@rabbitmq:5672/
+      RABBITMQ_URL: amqp://appuser:apppass123@rabbitmq:5672/
+      CELERY_BROKER_URL: amqp://appuser:apppass123@rabbitmq:5672/
       CELERY_RESULT_BACKEND: redis://redis:6379/0
     depends_on:
       mongodb:
@@ -148,25 +154,26 @@ services:
         condition: service_healthy
     volumes:
       - ./services/ai_worker:/app
+      - ./shared:/app/shared
     networks:
       - ai_network
     restart: unless-stopped
 
-  notification_service:
+  notification-service:
     build:
       context: .
       dockerfile: infrastructure/docker/Dockerfile.notification_service
     container_name: ai_platform_notification_service
     working_dir: /app
-    command: python src/main.py
+    command: python -m src.main
     ports:
       - "5003:5000"
     environment:
-      PYTHONPATH: /app/src
+      PYTHONPATH: /app
       FLASK_ENV: development
       MONGODB_URI: mongodb://admin:admin123@mongodb:27017/notification_service?authSource=admin
-      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
-      CELERY_BROKER_URL: amqp://guest:guest@rabbitmq:5672/
+      RABBITMQ_URL: amqp://appuser:apppass123@rabbitmq:5672/
+      CELERY_BROKER_URL: amqp://appuser:apppass123@rabbitmq:5672/
       CELERY_RESULT_BACKEND: redis://redis:6379/1
     depends_on:
       mongodb:
@@ -177,6 +184,7 @@ services:
         condition: service_healthy
     volumes:
       - ./services/notification_service:/app
+      - ./shared:/app/shared
     networks:
       - ai_network
     restart: unless-stopped
@@ -187,18 +195,24 @@ services:
       dockerfile: infrastructure/docker/Dockerfile.ai_worker
     container_name: ai_platform_celery_worker_ai
     working_dir: /app
-    command: celery -A infrastructure.messaging.celery_app worker -l info -c 4
+    command: >
+      celery -A services.ai_worker.src.infrastructure.messaging.celery_app:celery
+      worker -l info -c 4
     environment:
-      PYTHONPATH: /app/src
-      CELERY_BROKER_URL: amqp://guest:guest@rabbitmq:5672/
+      PYTHONPATH: /app
+      CELERY_BROKER_URL: amqp://appuser:apppass123@rabbitmq:5672/
       CELERY_RESULT_BACKEND: redis://redis:6379/0
     depends_on:
-      - rabbitmq
-      - redis
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     volumes:
-      - ./services/ai_worker:/app
+      - ./:/app
     networks:
       - ai_network
+    healthcheck:
+      disable: true
     restart: unless-stopped
 
   celery-worker-notification:
@@ -207,28 +221,35 @@ services:
       dockerfile: infrastructure/docker/Dockerfile.notification_service
     container_name: ai_platform_celery_worker_notification
     working_dir: /app
-    command: celery -A infrastructure.messaging.celery_app worker -l info -c 2
+    command: >
+      celery -A services.notification_service.src.infrastructure.messaging.celery_app:celery
+      worker -l info -c 2
     environment:
-      PYTHONPATH: /app/src
-      CELERY_BROKER_URL: amqp://guest:guest@rabbitmq:5672/
+      PYTHONPATH: /app
+      CELERY_BROKER_URL: amqp://appuser:apppass123@rabbitmq:5672/
       CELERY_RESULT_BACKEND: redis://redis:6379/1
     depends_on:
-      - rabbitmq
-      - redis
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     volumes:
-      - ./services/notification_service:/app
+      - ./:/app
     networks:
       - ai_network
+    healthcheck:
+      disable: true
     restart: unless-stopped
 
   flower:
     image: mher/flower:2.0
     container_name: ai_platform_flower
-    command: celery --broker=amqp://guest:guest@rabbitmq:5672// flower --port=5555
+    command: celery --broker=amqp://appuser:apppass123@rabbitmq:5672// flower --port=5555
     ports:
       - "5555:5555"
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
     networks:
       - ai_network
     restart: unless-stopped
