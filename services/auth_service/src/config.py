@@ -10,39 +10,55 @@ class Config:
     """Base configuration - shared across all environments"""
 
     # Flask
-    FLASK_ENV: str = os.getenv("FLASK_ENV", "development")
+    FLASK_ENV: str = field(default_factory=lambda: os.getenv("FLASK_ENV", "development"))
     DEBUG: bool = False
     TESTING: bool = False
 
     # Server
     SERVICE_NAME: str = "auth_service"
-    SERVICE_PORT: int = int(os.getenv("SERVICE_PORT", 5001))
-    SERVICE_HOST: str = "0.0.0.0"
+    SERVICE_PORT: int = field(default_factory=lambda: int(os.getenv("SERVICE_PORT", 5000)))
+    SERVICE_HOST: str = field(default_factory=lambda: os.getenv("SERVICE_HOST", "0.0.0.0"))
 
     # Logging
-    LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
-    LOG_FORMAT: str = "json"
+    LOG_LEVEL: str = field(default_factory=lambda: os.getenv("LOG_LEVEL", "INFO"))
+    LOG_FORMAT: str = field(default_factory=lambda: os.getenv("LOG_FORMAT", "json"))
 
     # Database
-    MONGODB_URI: str = os.getenv(
-        "MONGODB_URI",
-        "mongodb://admin:admin123@localhost:27017/auth_service?authSource=admin",
+    MONGODB_URI: str = field(
+        default_factory=lambda: os.getenv(
+            "MONGODB_URI",
+            "mongodb://admin:admin123@localhost:27017/auth_service?authSource=admin",
+        )
     )
 
     # Message Queue
-    RABBITMQ_URL: str = os.getenv(
-        "RABBITMQ_URL",
-        "amqp://guest:guest@localhost:5672/",
+    RABBITMQ_URL: str = field(
+        default_factory=lambda: os.getenv(
+            "RABBITMQ_URL",
+            "amqp://guest:guest@localhost:5672/",
+        )
     )
 
     # Security
-    JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "dev-secret-key")
-    JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")
-    JWT_EXPIRATION_HOURS: int = int(os.getenv("JWT_EXPIRATION_HOURS", 24))
-    REFRESH_TOKEN_EXPIRATION_DAYS: int = int(os.getenv("REFRESH_TOKEN_EXPIRATION_DAYS", 30))
+    JWT_SECRET_KEY: str = field(default_factory=lambda: os.getenv("JWT_SECRET_KEY", "dev-secret-key"))
+    JWT_ALGORITHM: str = field(default_factory=lambda: os.getenv("JWT_ALGORITHM", "HS256"))
+    JWT_ISSUER: str = field(default_factory=lambda: os.getenv("JWT_ISSUER", "auth_service"))
+    JWT_AUDIENCE: str = field(default_factory=lambda: os.getenv("JWT_AUDIENCE", "ai_platform"))
+    JWT_EXPIRATION_HOURS: int = field(default_factory=lambda: int(os.getenv("JWT_EXPIRATION_HOURS", 24)))
+    REFRESH_TOKEN_EXPIRATION_DAYS: int = field(
+        default_factory=lambda: int(os.getenv("REFRESH_TOKEN_EXPIRATION_DAYS", 30))
+    )
 
     # Password hashing
-    BCRYPT_LOG_ROUNDS: int = int(os.getenv("BCRYPT_LOG_ROUNDS", 12))
+    BCRYPT_LOG_ROUNDS: int = field(default_factory=lambda: int(os.getenv("BCRYPT_LOG_ROUNDS", 12)))
+
+    # OAuth provider configuration placeholders
+    OAUTH_ENABLED: bool = field(default_factory=lambda: os.getenv("OAUTH_ENABLED", "false").lower() == "true")
+    OAUTH_PROVIDERS: list = field(default_factory=list)
+
+    # Authorization placeholders
+    RBAC_ENABLED: bool = field(default_factory=lambda: os.getenv("RBAC_ENABLED", "false").lower() == "true")
+    DEFAULT_ROLE: str = field(default_factory=lambda: os.getenv("DEFAULT_ROLE", "user"))
 
     # CORS
     CORS_ALLOWED_ORIGINS: list = field(default_factory=list)
@@ -59,19 +75,23 @@ class Config:
     JSON_SORT_KEYS: bool = False
 
 
+@dataclass
 class DevelopmentConfig(Config):
     """Development environment configuration"""
 
-    DEBUG = True
-    LOG_LEVEL = "DEBUG"
+    FLASK_ENV: str = "development"
+    DEBUG: bool = True
+    LOG_LEVEL: str = "DEBUG"
     CORS_ALLOWED_ORIGINS: list = field(default_factory=lambda: ["*"])
 
 
+@dataclass
 class StagingConfig(Config):
     """Staging environment configuration"""
 
-    DEBUG = False
-    LOG_LEVEL = "INFO"
+    FLASK_ENV: str = "staging"
+    DEBUG: bool = False
+    LOG_LEVEL: str = "INFO"
     CORS_ALLOWED_ORIGINS: list = field(
         default_factory=lambda: [
             os.getenv("STAGING_FRONTEND_URL", "https://staging.example.com")
@@ -79,11 +99,13 @@ class StagingConfig(Config):
     )
 
 
+@dataclass
 class ProductionConfig(Config):
     """Production environment configuration"""
 
-    DEBUG = False
-    LOG_LEVEL = "WARNING"
+    FLASK_ENV: str = "production"
+    DEBUG: bool = False
+    LOG_LEVEL: str = "WARNING"
 
     CORS_ALLOWED_ORIGINS: list = field(
         default_factory=lambda: [
@@ -91,8 +113,8 @@ class ProductionConfig(Config):
         ]
     )
 
-    MONGODB_URI: str = os.getenv("MONGODB_URI", "")
-    JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "")
+    MONGODB_URI: str = field(default_factory=lambda: os.getenv("MONGODB_URI", ""))
+    JWT_SECRET_KEY: str = field(default_factory=lambda: os.getenv("JWT_SECRET_KEY", ""))
 
     def __post_init__(self):
         if not self.MONGODB_URI:
@@ -105,13 +127,15 @@ class ProductionConfig(Config):
             )
 
 
+@dataclass
 class TestingConfig(Config):
     """Testing environment configuration"""
 
-    TESTING = True
-    DEBUG = True
-    LOG_LEVEL = "DEBUG"
-    MONGODB_URI = "mongodb://admin:admin123@localhost:27017/auth_service_test?authSource=admin"
+    FLASK_ENV: str = "testing"
+    TESTING: bool = True
+    DEBUG: bool = True
+    LOG_LEVEL: str = "DEBUG"
+    MONGODB_URI: str = "mongodb://admin:admin123@localhost:27017/auth_service_test?authSource=admin"
 
 
 def get_config(env: Optional[str] = None) -> Config:

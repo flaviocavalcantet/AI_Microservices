@@ -1,3 +1,7 @@
-# Repositories subpackage initializer
+# Domain repositories package
 
-__all__ = []
+from .job_repository import IJobRepository
+
+__all__ = [
+    'IJobRepository',
+]

@@ -10,41 +10,47 @@ class Config:
     """Base configuration - shared across all environments"""
     
     # Flask
-    FLASK_ENV: str = os.getenv("FLASK_ENV", "development")
+    FLASK_ENV: str = field(default_factory=lambda: os.getenv("FLASK_ENV", "development"))
     DEBUG: bool = False
     TESTING: bool = False
     
     # Server
     SERVICE_NAME: str = "api_service"
-    SERVICE_PORT: int = int(os.getenv("SERVICE_PORT", 5000))
-    SERVICE_HOST: str = "0.0.0.0"
+    SERVICE_PORT: int = field(default_factory=lambda: int(os.getenv("SERVICE_PORT", 5000)))
+    SERVICE_HOST: str = field(default_factory=lambda: os.getenv("SERVICE_HOST", "0.0.0.0"))
     
     # Logging
-    LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
-    LOG_FORMAT: str = "json"  # json, text
+    LOG_LEVEL: str = field(default_factory=lambda: os.getenv("LOG_LEVEL", "INFO"))
+    LOG_FORMAT: str = field(default_factory=lambda: os.getenv("LOG_FORMAT", "json"))  # json, text
     
     # Database
-    MONGODB_URI: str = os.getenv(
-        "MONGODB_URI",
-        "mongodb://admin:admin123@localhost:27017/api_service?authSource=admin"
+    MONGODB_URI: str = field(
+        default_factory=lambda: os.getenv(
+            "MONGODB_URI",
+            "mongodb://admin:admin123@localhost:27017/api_service?authSource=admin",
+        )
     )
     
     # Message Queue
-    RABBITMQ_URL: str = os.getenv(
-        "RABBITMQ_URL",
-        "amqp://guest:guest@localhost:5672/"
+    RABBITMQ_URL: str = field(
+        default_factory=lambda: os.getenv(
+            "RABBITMQ_URL",
+            "amqp://guest:guest@localhost:5672/",
+        )
     )
     
     # Caching
-    REDIS_URL: str = os.getenv(
-        "REDIS_URL",
-        "redis://localhost:6379/0"
+    REDIS_URL: str = field(
+        default_factory=lambda: os.getenv(
+            "REDIS_URL",
+            "redis://localhost:6379/0",
+        )
     )
     
     # Security
-    JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "dev-secret-key")
-    JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")
-    JWT_EXPIRATION_HOURS: int = 24
+    JWT_SECRET_KEY: str = field(default_factory=lambda: os.getenv("JWT_SECRET_KEY", "dev-secret-key"))
+    JWT_ALGORITHM: str = field(default_factory=lambda: os.getenv("JWT_ALGORITHM", "HS256"))
+    JWT_EXPIRATION_HOURS: int = field(default_factory=lambda: int(os.getenv("JWT_EXPIRATION_HOURS", 24)))
     
     # CORS
     CORS_ALLOWED_ORIGINS: list = field(default_factory=list)
@@ -61,21 +67,25 @@ class Config:
     JSON_SORT_KEYS: bool = False
 
 
+@dataclass
 class DevelopmentConfig(Config):
     """Development environment configuration"""
     
-    DEBUG = True
-    LOG_LEVEL = "DEBUG"
+    FLASK_ENV: str = "development"
+    DEBUG: bool = True
+    LOG_LEVEL: str = "DEBUG"
     
     # Allow all origins in development
     CORS_ALLOWED_ORIGINS: list = field(default_factory=lambda: ["*"])
 
 
+@dataclass
 class StagingConfig(Config):
     """Staging environment configuration"""
     
-    DEBUG = False
-    LOG_LEVEL = "INFO"
+    FLASK_ENV: str = "staging"
+    DEBUG: bool = False
+    LOG_LEVEL: str = "INFO"
     
     # Restrict CORS in staging
     CORS_ALLOWED_ORIGINS: list = field(
@@ -85,11 +95,13 @@ class StagingConfig(Config):
 )
 
 
+@dataclass
 class ProductionConfig(Config):
     """Production environment configuration"""
 
-    DEBUG = False
-    LOG_LEVEL = "WARNING"
+    FLASK_ENV: str = "production"
+    DEBUG: bool = False
+    LOG_LEVEL: str = "WARNING"
 
     CORS_ALLOWED_ORIGINS: list = field(
         default_factory=lambda: [
@@ -97,8 +109,8 @@ class ProductionConfig(Config):
         ]
     )
 
-    MONGODB_URI: str = os.getenv("MONGODB_URI", "")
-    JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "")
+    MONGODB_URI: str = field(default_factory=lambda: os.getenv("MONGODB_URI", ""))
+    JWT_SECRET_KEY: str = field(default_factory=lambda: os.getenv("JWT_SECRET_KEY", ""))
 
     def __post_init__(self):
         if not self.MONGODB_URI:
@@ -111,15 +123,17 @@ class ProductionConfig(Config):
                 "JWT_SECRET_KEY must be set and at least 32 chars in production"
             )
 
+@dataclass
 class TestingConfig(Config):
     """Testing environment configuration"""
     
-    TESTING = True
-    DEBUG = True
-    LOG_LEVEL = "DEBUG"
+    FLASK_ENV: str = "testing"
+    TESTING: bool = True
+    DEBUG: bool = True
+    LOG_LEVEL: str = "DEBUG"
     
     # Use in-memory database for testing
-    MONGODB_URI = "mongodb://admin:admin123@localhost:27017/api_service_test?authSource=admin"
+    MONGODB_URI: str = "mongodb://admin:admin123@localhost:27017/api_service_test?authSource=admin"
 
 
 def get_config(env: Optional[str] = None) -> Config:

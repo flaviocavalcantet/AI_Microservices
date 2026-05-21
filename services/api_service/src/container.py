@@ -26,6 +26,7 @@ class ServiceContainer:
         self._services: Dict[str, Any] = {}
         self._factories: Dict[str, Callable] = {}
         self._singletons: Dict[str, Any] = {}
+        self._singleton_services: set[str] = set()
     
     def register(
         self,
@@ -45,6 +46,10 @@ class ServiceContainer:
             >>> container.register("logger", get_logger, singleton=False)
         """
         self._factories[name] = factory
+        if singleton:
+            self._singleton_services.add(name)
+        else:
+            self._singleton_services.discard(name)
         
         if singleton:
             logger.debug(f"Registered singleton service: {name}")
@@ -104,7 +109,7 @@ class ServiceContainer:
             instance = factory()
         
         # Store singleton if configured
-        if name in self._factories and hasattr(factory, "__singleton__"):
+        if name in self._singleton_services:
             self._singletons[name] = instance
         
         return instance
@@ -128,6 +133,7 @@ class ServiceContainer:
         self._services.clear()
         self._factories.clear()
         self._singletons.clear()
+        self._singleton_services.clear()
         logger.debug("Service container cleared")
 
 
@@ -164,3 +170,29 @@ def init_container(container: ServiceContainer) -> None:
     """
     global _container
     _container = container
+
+
+def resolve_from_context(service_name: str) -> Any:
+    """Resolve a service from the global container context
+    
+    This function retrieves a service from the globally initialized
+    service container. Used in request handlers to access dependencies.
+    
+    Args:
+        service_name: Name of service to resolve
+    
+    Returns:
+        Service instance
+    
+    Raises:
+        ValueError: If service not registered
+        RuntimeError: If container not initialized
+    
+    Example:
+        >>> use_case = resolve_from_context("create_job_use_case")
+        >>> result = use_case.execute(input_dto)
+    """
+    container = get_container()
+    if container is None:
+        raise RuntimeError("Service container not initialized. Call init_container() first.")
+    return container.resolve(service_name)

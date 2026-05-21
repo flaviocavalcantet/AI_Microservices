@@ -1,61 +1,37 @@
 # Application entry point
 
 import sys
-import logging
+from pathlib import Path
 
-from flask import Flask, jsonify
-from src.infrastructure.messaging.celery_app import celery  # noqa: F401 - ensures tasks are registered
+project_root = Path(__file__).parent.parent.parent.parent
+sys.path.insert(0, str(project_root))
 
-# Setup basic logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from .config import get_config
+from .logger import get_logger
+from .presentation.app import create_app
 
-
-def create_app() -> Flask:
-    """Create minimal Flask app for health checks and status endpoints.
-
-    The actual work is done by the Celery worker (celery-worker-notification container).
-    This HTTP server exists solely for liveness/readiness probes.
-    """
-    app = Flask(__name__)
-
-    @app.route("/api/v1/notifications/health", methods=["GET"])
-    def health():
-        return jsonify({"status": "healthy", "service": "notification_service"}), 200
-
-    @app.route("/api/v1/notifications/health/ready", methods=["GET"])
-    def readiness():
-        """Check broker connectivity before reporting ready."""
-        try:
-            conn = celery.connection(transport_options={"max_retries": 1})
-            conn.ensure_connection(max_retries=1)
-            conn.close()
-            broker_ok = True
-        except Exception:
-            broker_ok = False
-
-        status = "ready" if broker_ok else "unavailable"
-        code = 200 if broker_ok else 503
-        return jsonify({
-            "status": status,
-            "service": "notification_service",
-            "broker": "ok" if broker_ok else "unreachable",
-        }), code
-
-    return app
+logger = get_logger(__name__)
 
 
 def main():
     try:
-        app = create_app()
+        config = get_config()
+        app = create_app(config=config)
 
-        logger.info("Starting notification_service HTTP server on 0.0.0.0:5000")
+        logger.info(
+            "Starting notification_service HTTP probe server",
+            extra={
+                "host": config.SERVICE_HOST,
+                "port": config.SERVICE_PORT,
+                "queue": config.CELERY_TASK_DEFAULT_QUEUE,
+            },
+        )
 
         app.run(
-            host="0.0.0.0",
-            port=5000,
-            debug=False,
-            use_reloader=False,
+            host=config.SERVICE_HOST,
+            port=config.SERVICE_PORT,
+            debug=config.DEBUG,
+            use_reloader=config.DEBUG,
         )
 
     except Exception as e:

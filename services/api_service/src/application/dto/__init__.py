@@ -1,3 +1,6 @@
 # DTOs subpackage initializer
 
-__all__ = []
+from .job_dto import CreateJobDTO, JobDTO
+
+__all__ = ["CreateJobDTO", "JobDTO"]
+

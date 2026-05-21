@@ -1,0 +1,1 @@
+"""Runtime capability detection adapters."""

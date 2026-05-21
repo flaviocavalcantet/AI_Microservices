@@ -1,3 +1,7 @@
-# Entities subpackage initializer
+# Domain entities package
 
-__all__ = []
+from .job import Job
+
+__all__ = [
+    'Job',
+]

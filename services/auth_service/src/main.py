@@ -1,12 +1,15 @@
 # Application entry point
 import sys
 import logging
+from pathlib import Path
 
+project_root = Path(__file__).parent.parent.parent.parent
+sys.path.insert(0, str(project_root))
 
 # Add shared imports for shared utilities
 from shared.shared_config import load_env, get_settings
-from src.presentation.app import create_app
-from src.logger import get_logger
+from .presentation.app import create_app
+from .logger import get_logger
 
 # Load environment variables from .env files FIRST
 load_env(verbose=True)
@@ -70,13 +73,12 @@ def main():
                 "port": config.get("SERVICE_PORT", 5001),
             },
         )
-       
-       # Run development server
+        # Run development server
         app.run(
-            host="0.0.0.0",
-            port=5000,
-            debug= False,
-            use_reloader=False,
+            host=config.get("SERVICE_HOST", "0.0.0.0"),
+            port=config.get("SERVICE_PORT", 5000),
+            debug=config.get("DEBUG", False),
+            use_reloader=config.get("DEBUG", False),
         )
 
     except Exception as e:
