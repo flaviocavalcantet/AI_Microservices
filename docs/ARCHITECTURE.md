@@ -303,7 +303,9 @@ def process_data(data_id):
 
 ## 9. Security Considerations
 
-### Authentication
+### Authentication & Identity Propagation
+
+See [IDENTITY_PROPAGATION.md](./IDENTITY_PROPAGATION.md) for the full trust model (user JWT + SPIFFE workload identity, correlation IDs, tracing).
 
 JWT tokens with RS256 (asymmetric):
 

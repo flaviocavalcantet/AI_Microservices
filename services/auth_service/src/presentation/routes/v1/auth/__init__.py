@@ -1,4 +1,5 @@
-"""Authentication route package.
+"""Authentication routes."""
 
-Real authentication endpoints are intentionally not implemented yet.
-"""
+from .controller import auth_bp
+
+__all__ = ["auth_bp"]

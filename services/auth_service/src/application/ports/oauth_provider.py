@@ -1,16 +1,5 @@
-"""OAuth provider port for future OAuth flows."""
+"""Legacy alias — use IOAuthProvider from interfaces.py."""
 
-from abc import ABC, abstractmethod
-from typing import Any, Dict
+from .interfaces import IOAuthProvider as OAuthProvider
 
-
-class OAuthProvider(ABC):
-    """Interface for external OAuth provider integrations."""
-
-    @abstractmethod
-    def get_authorization_url(self, state: str) -> str:
-        raise NotImplementedError
-
-    @abstractmethod
-    def exchange_code(self, code: str) -> Dict[str, Any]:
-        raise NotImplementedError
+__all__ = ["OAuthProvider"]

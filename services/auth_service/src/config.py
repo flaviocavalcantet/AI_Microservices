@@ -45,8 +45,33 @@ class Config:
     JWT_ISSUER: str = field(default_factory=lambda: os.getenv("JWT_ISSUER", "auth_service"))
     JWT_AUDIENCE: str = field(default_factory=lambda: os.getenv("JWT_AUDIENCE", "ai_platform"))
     JWT_EXPIRATION_HOURS: int = field(default_factory=lambda: int(os.getenv("JWT_EXPIRATION_HOURS", 24)))
+    JWT_ACCESS_TOKEN_SECONDS: int = field(
+        default_factory=lambda: int(os.getenv("JWT_ACCESS_TOKEN_SECONDS", 900))
+    )
     REFRESH_TOKEN_EXPIRATION_DAYS: int = field(
         default_factory=lambda: int(os.getenv("REFRESH_TOKEN_EXPIRATION_DAYS", 30))
+    )
+
+    def refresh_token_ttl_seconds(self) -> int:
+        """Refresh JWT TTL in seconds — override via JWT_REFRESH_TOKEN_SECONDS env."""
+        override = os.getenv("JWT_REFRESH_TOKEN_SECONDS")
+        if override:
+            return int(override)
+        return self.REFRESH_TOKEN_EXPIRATION_DAYS * 24 * 3600
+    OAUTH_STATE_TTL_MINUTES: int = field(
+        default_factory=lambda: int(os.getenv("OAUTH_STATE_TTL_MINUTES", 10))
+    )
+
+    # GitHub OAuth
+    GITHUB_CLIENT_ID: str = field(default_factory=lambda: os.getenv("GITHUB_CLIENT_ID", ""))
+    GITHUB_CLIENT_SECRET: str = field(default_factory=lambda: os.getenv("GITHUB_CLIENT_SECRET", ""))
+    GITHUB_REDIRECT_URI: str = field(
+        default_factory=lambda: os.getenv(
+            "GITHUB_REDIRECT_URI", "http://localhost:5000/api/v1/auth/oauth/github/callback"
+        )
+    )
+    GITHUB_OAUTH_SCOPES: str = field(
+        default_factory=lambda: os.getenv("GITHUB_OAUTH_SCOPES", "read:user user:email")
     )
 
     # Password hashing

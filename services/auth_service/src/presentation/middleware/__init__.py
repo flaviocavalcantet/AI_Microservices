@@ -4,6 +4,7 @@ from flask import Flask
 
 from ...context import RequestContextManager
 from ...errors import register_error_handlers
+from .validation import validate_json_body, validate_query_params
 
 
 def inject_correlation_id(app: Flask) -> None:
@@ -11,4 +12,9 @@ def inject_correlation_id(app: Flask) -> None:
     RequestContextManager.setup_request_context(app)
 
 
-__all__ = ["inject_correlation_id", "register_error_handlers"]
+__all__ = [
+    "inject_correlation_id",
+    "register_error_handlers",
+    "validate_json_body",
+    "validate_query_params",
+]

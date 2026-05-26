@@ -32,10 +32,20 @@ def readiness_check():
     Extend this to check MongoDB and RabbitMQ connectivity
     once those dependencies are wired up.
     """
+    from ...container import get_container
+
+    oauth_status = "not_configured"
+    try:
+        registry = get_container().resolve("oauth_provider_registry")
+        names = registry.names()
+        oauth_status = names if names else "not_configured"
+    except Exception:
+        pass
+
     dependencies = {
-        "database": "not_configured",
+        "database": "in_memory",
         "message_queue": "not_configured",
-        "oauth_providers": "not_configured",
+        "oauth_providers": oauth_status,
     }
     return jsonify(_payload("ready", dependencies=dependencies)), 200
 

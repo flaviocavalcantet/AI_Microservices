@@ -47,10 +47,36 @@ class Config:
         )
     )
     
-    # Security
+    # Security / JWT (must match auth-service issuance settings)
     JWT_SECRET_KEY: str = field(default_factory=lambda: os.getenv("JWT_SECRET_KEY", "dev-secret-key"))
     JWT_ALGORITHM: str = field(default_factory=lambda: os.getenv("JWT_ALGORITHM", "HS256"))
+    JWT_ISSUER: str = field(default_factory=lambda: os.getenv("JWT_ISSUER", "auth_service"))
+    JWT_AUDIENCE: str = field(default_factory=lambda: os.getenv("JWT_AUDIENCE", "ai_platform"))
     JWT_EXPIRATION_HOURS: int = field(default_factory=lambda: int(os.getenv("JWT_EXPIRATION_HOURS", 24)))
+    JWT_AUTH_ENABLED: bool = field(
+        default_factory=lambda: os.getenv("JWT_AUTH_ENABLED", "true").lower() == "true"
+    )
+    JWT_AUTH_REQUIRED: bool = field(
+        default_factory=lambda: os.getenv("JWT_AUTH_REQUIRED", "false").lower() == "true"
+    )
+
+    # SPIFFE / SPIRE (Docker workload identity)
+    SPIRE_ENABLED: bool = field(
+        default_factory=lambda: os.getenv("SPIRE_ENABLED", "false").lower() == "true"
+    )
+    SPIRE_TRUST_DOMAIN: str = field(
+        default_factory=lambda: os.getenv("SPIRE_TRUST_DOMAIN", "ai-platform.local")
+    )
+    SPIRE_AGENT_SOCKET: str = field(
+        default_factory=lambda: os.getenv(
+            "SPIRE_AGENT_SOCKET", "unix:///tmp/spire-agent/public/api.sock"
+        )
+    )
+    SPIRE_WORKLOAD_ID: str = field(
+        default_factory=lambda: os.getenv(
+            "SPIRE_WORKLOAD_ID", "spiffe://ai-platform.local/workload/api-service"
+        )
+    )
     
     # CORS
     CORS_ALLOWED_ORIGINS: list = field(default_factory=list)

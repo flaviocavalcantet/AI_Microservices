@@ -1,0 +1,65 @@
+# SPIRE workload identity for local Docker Compose (no Kubernetes).
+# Usage:
+#   docker compose -f docker-compose.yml -f infrastructure/spire/docker/docker-compose.spire.yml up -d
+#   ./infrastructure/spire/docker/scripts/bootstrap.sh
+
+services:
+  spire-server:
+    image: ghcr.io/spiffe/spire-server:1.10.0
+    container_name: ai_platform_spire_server
+    hostname: spire-server
+    command: ["-config", "/opt/spire/conf/server/server.conf"]
+    volumes:
+      - ./infrastructure/spire/docker/server/conf:/opt/spire/conf/server:ro
+      - spire_server_data:/opt/spire/data
+    ports:
+      - "8081:8081"
+      - "8080:8080"
+    networks:
+      - ai_network
+    healthcheck:
+      test: ["CMD", "/opt/spire/bin/spire-server", "healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  spire-agent:
+    image: ghcr.io/spiffe/spire-agent:1.10.0
+    container_name: ai_platform_spire_agent
+    hostname: spire-agent
+    depends_on:
+      spire-server:
+        condition: service_healthy
+    command: ["-config", "/opt/spire/conf/agent/agent.conf"]
+    volumes:
+      - ./infrastructure/spire/docker/agent/conf:/opt/spire/conf/agent:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - spire_agent_socket:/tmp/spire-agent/public
+    networks:
+      - ai_network
+    healthcheck:
+      test: ["CMD", "/opt/spire/bin/spire-agent", "healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  spire-bootstrap:
+    image: ghcr.io/spiffe/spire-server:1.10.0
+    container_name: ai_platform_spire_bootstrap
+    entrypoint: ["/bin/sh", "/registration/entries.sh"]
+    volumes:
+      - ./infrastructure/spire/docker/registration:/registration:ro
+    depends_on:
+      spire-agent:
+        condition: service_healthy
+    networks:
+      - ai_network
+    restart: "no"
+
+volumes:
+  spire_server_data:
+  spire_agent_socket:

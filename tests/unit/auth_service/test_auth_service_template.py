@@ -5,23 +5,12 @@ import logging
 
 import pytest
 
-from services.auth_service.src.application.ports.authorization_policy import AuthorizationPolicy
-from services.auth_service.src.application.ports.oauth_provider import OAuthProvider
-from services.auth_service.src.application.ports.token_service import TokenService
+from services.auth_service.src.application.ports.interfaces import IAuthorizationPolicy, ITokenService
 from services.auth_service.src.config import get_config
 from services.auth_service.src.container import ServiceContainer, get_container
 from services.auth_service.src.infrastructure.security.jwt_service import JwtTokenService
 from services.auth_service.src.infrastructure.security.oauth_registry import OAuthProviderRegistry
 from services.auth_service.src.logger import JSONFormatter
-from services.auth_service.src.presentation.app import create_app
-
-
-@pytest.fixture
-def app(monkeypatch):
-    monkeypatch.setenv("FLASK_ENV", "testing")
-    return create_app()
-
-
 def test_auth_service_health_checks_are_available(app):
     client = app.test_client()
 
@@ -47,20 +36,38 @@ def test_auth_service_preserves_request_correlation_headers(app):
 def test_auth_infrastructure_ports_are_registered(app):
     container = get_container()
 
-    assert isinstance(container.resolve("token_service"), TokenService)
+    assert isinstance(container.resolve("token_service"), ITokenService)
     assert isinstance(container.resolve("token_service"), JwtTokenService)
     assert isinstance(container.resolve("oauth_provider_registry"), OAuthProviderRegistry)
-    assert isinstance(container.resolve("authorization_policy"), AuthorizationPolicy)
+    assert isinstance(container.resolve("authorization_policy"), IAuthorizationPolicy)
 
 
-def test_jwt_service_is_ready_but_not_implemented(app):
+def test_jwt_service_issues_and_validates_tokens(app):
+    from services.auth_service.src.domain.entities.user import User
+
     token_service = get_container().resolve("token_service")
+    user = User.create(
+        provider="github",
+        provider_user_id="1",
+        email="test@example.com",
+        display_name="Test",
+    )
+    token, jti = token_service.issue_access_token(user)
+    claims = token_service.validate_access_token(token)
+    assert claims.user_id == user.id
+    assert claims.token_type == "access"
+    assert jti
 
-    with pytest.raises(NotImplementedError):
-        token_service.issue_access_token("user-123")
+    pair = token_service.issue_token_pair(user, session_id="test-session")
+    assert token_service.validate_refresh_token(pair.refresh_token).session_id == "test-session"
 
-    with pytest.raises(NotImplementedError):
-        token_service.validate_access_token("token")
+
+def test_auth_routes_are_registered(app):
+    rules = {rule.rule for rule in app.url_map.iter_rules()}
+    assert "/api/v1/auth/login" in rules
+    assert "/api/v1/auth/refresh" in rules
+    assert "/api/v1/auth/oauth/github" in rules
+    assert "/api/v1/auth/oauth/github/callback" in rules
 
 
 def test_environment_config_profiles_apply_expected_overrides():

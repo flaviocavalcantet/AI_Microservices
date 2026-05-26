@@ -198,7 +198,7 @@ def register_flask_request_logging(app: Flask, service_name: str) -> None:
 
         g.request_id = request_id
         g.correlation_id = correlation_id
-        g.user_id = request.headers.get("X-User-ID")
+        # user_id is set only by JWT middleware after signature verification
         g.request_started_at = time.perf_counter()
         g.request_metadata = {
             "method": request.method,

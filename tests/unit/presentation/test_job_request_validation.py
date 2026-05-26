@@ -1,4 +1,10 @@
-"""Tests for Jobs API request validation."""
+"""Tests for Jobs API request validation.
+
+These tests focus on schema validation, not auth logic.  The fixture disables
+JWT validation (JWT_AUTH_ENABLED=false) so tests can reach the validation layer
+without having to supply a real token on every call.  Auth behaviour is covered
+separately in test_jwt_propagation.py.
+"""
 
 import pytest
 
@@ -8,6 +14,8 @@ from services.api_service.src.presentation.app import create_app
 @pytest.fixture
 def client(monkeypatch):
     monkeypatch.setenv("FLASK_ENV", "testing")
+    # Disable JWT enforcement so validation tests are not coupled to auth.
+    monkeypatch.setenv("JWT_AUTH_ENABLED", "false")
     app = create_app()
     app.config.update(TESTING=True)
     return app.test_client()
@@ -33,7 +41,8 @@ def test_create_job_rejects_missing_required_field(client):
     assert payload["details"]["validation_errors"][0]["field"] == "input_data"
 
 
-def test_create_job_uses_anonymous_user_when_header_missing(client):
+def test_create_job_uses_anonymous_user_when_no_token(client):
+    """Without a JWT the caller identity falls back to 'anonymous'."""
     response = client.post(
         "/api/v1/jobs",
         json={"job_type": "training", "input_data": {}, "priority": 5},

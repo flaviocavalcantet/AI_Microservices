@@ -7,8 +7,8 @@ from flasgger import Swagger
 from services.api_service.src.config import Config, get_config
 from services.api_service.src.logger import setup_logging, get_logger
 from services.api_service.src.container import ServiceContainer, init_container
-from services.api_service.src.context import RequestContextManager
 from services.api_service.src.errors import register_error_handlers
+from services.api_service.src.presentation.middleware import register_auth_middleware
 from services.api_service.src.presentation.routes.health import health_bp
 from services.api_service.src.presentation.routes.v1.jobs.controller import jobs_bp
 
@@ -92,9 +92,9 @@ def create_app(config: Config = None, container: ServiceContainer = None) -> Fla
     # Set global container
     init_container(container)
     
-    # Setup request context (correlation IDs, request IDs)
-    RequestContextManager.setup_request_context(app)
-    
+    # Correlation IDs, JWT auth, and propagation context
+    register_auth_middleware(app, config)
+
     # Register error handlers
     register_error_handlers(app)
     

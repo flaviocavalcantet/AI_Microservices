@@ -5,6 +5,15 @@ from typing import Tuple, Dict, Any
 from flask import Flask, jsonify
 from werkzeug.exceptions import HTTPException
 
+from shared.shared_auth.errors import (
+    AuthorizationError,
+    InsufficientPermissionsError,
+    MissingTokenError,
+    TokenExpiredError,
+    InvalidTokenError,
+    InvalidClaimsError,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -92,16 +101,48 @@ class ServiceUnavailableError(APIError):
 
 def register_error_handlers(app: Flask) -> None:
     """Register error handlers for the Flask application
-    
+
     Handles:
-    - APIError subclasses
+    - APIError subclasses (local)
+    - shared_auth AuthorizationError hierarchy (401 / 403)
     - HTTPException (Flask/Werkzeug errors)
     - Unexpected exceptions
-    
+
     Args:
         app: Flask application instance
     """
-    
+
+    @app.errorhandler(InsufficientPermissionsError)
+    def handle_insufficient_permissions(error: InsufficientPermissionsError) -> Tuple[Dict, int]:
+        """403 — authenticated but lacks required role/permission."""
+        response = {
+            "status": "error",
+            "error": {
+                "code": "FORBIDDEN",
+                "message": error.message,
+                "details": error.details,
+            },
+        }
+        return jsonify(response), 403
+
+    @app.errorhandler(TokenExpiredError)
+    def handle_token_expired(error: TokenExpiredError) -> Tuple[Dict, int]:
+        """401 — token present but expired."""
+        response = {
+            "status": "error",
+            "error": {"code": "TOKEN_EXPIRED", "message": error.message},
+        }
+        return jsonify(response), 401
+
+    @app.errorhandler(AuthorizationError)
+    def handle_authorization_error(error: AuthorizationError) -> Tuple[Dict, int]:
+        """Catch-all for remaining shared_auth errors (401)."""
+        response = {
+            "status": "error",
+            "error": {"code": error.code, "message": error.message},
+        }
+        return jsonify(response), error.status_code
+
     @app.errorhandler(APIError)
     def handle_api_error(error: APIError) -> Tuple[Dict, int]:
         """Handle custom API errors"""

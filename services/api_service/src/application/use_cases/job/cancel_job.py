@@ -36,55 +36,68 @@ class CancelJobUseCase:
         self.repository = repository
         self.event_publisher = event_publisher
     
-    def execute(self, job_id: str) -> JobDTO:
+    def execute(self, job_id: str, user_id: str = "", is_admin: bool = False) -> JobDTO:
         """
         Cancel job.
-        
+
         Args:
-            job_id: ID of job to cancel
-        
+            job_id:   ID of job to cancel.
+            user_id:  User requesting the cancellation (for ownership check).
+            is_admin: Admins may cancel any job.
+
         Returns:
             Cancelled JobDTO
-        
+
         Raises:
-            JobNotFoundError: If job not found
-            InvalidJobStatusError: If job cannot be cancelled
-            ValueError: If job_id invalid
+            JobNotFoundError: If job not found.
+            InvalidJobStatusError: If job cannot be cancelled.
+            PermissionError: If caller is not the owner and not an admin.
+            ValueError: If job_id invalid.
         """
         try:
             if not job_id or not isinstance(job_id, str):
                 raise ValueError("job_id must be a non-empty string")
-            
-            logger.debug(f"Cancelling job: job_id={job_id}")
-            
+
+            logger.debug(f"Cancelling job: job_id={job_id}, user_id={user_id}")
+
             # Get job
             job = self.repository.find_by_id(job_id)
             if not job:
                 logger.info(f"Job not found: job_id={job_id}")
                 raise JobNotFoundError(job_id)
-            
+
+            # Ownership check (mirrors DeleteJobUseCase)
+            if user_id and not is_admin and job.user_id != user_id:
+                logger.warning(
+                    f"Permission denied: user_id={user_id} cannot cancel "
+                    f"job_id={job_id} owned by {job.user_id}"
+                )
+                raise PermissionError(
+                    "You can only cancel your own jobs."
+                )
+
             # Check if cancellable (must be pending or running)
             if job.status not in ["pending", "running"]:
                 raise InvalidJobStatusError(
                     f"Cannot cancel job in '{job.status}' state. "
                     f"Only 'pending' and 'running' jobs can be cancelled."
                 )
-            
+
             # Cancel job
             job.cancel()
-            
+
             # Persist
             cancelled_job = self.repository.save(job)
-            
+
             # Publish event if publisher available
             if self.event_publisher:
                 self._publish_job_cancelled_event(cancelled_job)
-            
+
             logger.info(f"Cancelled job: job_id={job_id}, prev_status={job.status}")
-            
+
             return self._map_to_dto(cancelled_job)
         
-        except (JobNotFoundError, InvalidJobStatusError):
+        except (JobNotFoundError, InvalidJobStatusError, PermissionError):
             raise
         except ValueError as e:
             logger.warning(f"Validation failed: {e}")

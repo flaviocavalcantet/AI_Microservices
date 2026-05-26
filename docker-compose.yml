@@ -85,11 +85,16 @@ services:
     container_name: ai_platform_auth_service
     working_dir: /app
     command: python -m src.main
+    labels:
+      - "spire.service=auth-service"
     ports:
       - "5001:5000"
     environment:
       PYTHONPATH: /app
       FLASK_ENV: development
+      JWT_SECRET_KEY: dev-secret-key-change-in-production-32chars
+      JWT_ISSUER: auth_service
+      JWT_AUDIENCE: ai_platform
       MONGODB_URI: mongodb://admin:admin123@mongodb:27017/auth_service?authSource=admin
       RABBITMQ_URL: amqp://appuser:apppass123@rabbitmq:5672/
     depends_on:
@@ -111,11 +116,20 @@ services:
     container_name: ai_platform_api_service
     working_dir: /app
     command: python -m services.api_service.src.main
+    labels:
+      - "spire.service=api-service"
     ports:
       - "5000:5000"
     environment:
       PYTHONPATH: /app
       FLASK_ENV: development
+      JWT_SECRET_KEY: dev-secret-key-change-in-production-32chars
+      JWT_ISSUER: auth_service
+      JWT_AUDIENCE: ai_platform
+      JWT_AUTH_ENABLED: "true"
+      JWT_AUTH_REQUIRED: "false"
+      SPIRE_ENABLED: "false"
+      SPIRE_WORKLOAD_ID: spiffe://ai-platform.local/workload/api-service
       MONGODB_URI: mongodb://admin:admin123@mongodb:27017/api_service?authSource=admin
       RABBITMQ_URL: amqp://appuser:apppass123@rabbitmq:5672/
     depends_on:
@@ -136,6 +150,8 @@ services:
     container_name: ai_platform_ai_worker
     working_dir: /app
     command: python -m src.main
+    labels:
+      - "spire.service=ai-worker"
     ports:
       - "5002:5000"
     environment:
@@ -166,6 +182,8 @@ services:
     container_name: ai_platform_notification_service
     working_dir: /app
     command: python -m src.main
+    labels:
+      - "spire.service=notification-service"
     ports:
       - "5003:5000"
     environment:
@@ -264,6 +282,11 @@ volumes:
   redis_data:
 
 
+# SPIRE workload identity (Docker, optional):
+#   docker compose -f docker-compose.yml -f infrastructure/spire/docker/docker-compose.spire.yml up -d
+#   ./infrastructure/spire/docker/scripts/bootstrap.sh
+# See infrastructure/spire/docker/README.md
+#
 # Usage:
 # docker-compose up -d              # Start all services
 # docker-compose down               # Stop all services
