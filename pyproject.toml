@@ -150,6 +150,7 @@ markers = [
     "e2e: End-to-end tests",
     "slow: Slow running tests",
     "requires_docker: Tests requiring Docker",
+    "mongodb: Tests covering MongoDB integration (all layers)",
 ]
 
 [tool.coverage.run]

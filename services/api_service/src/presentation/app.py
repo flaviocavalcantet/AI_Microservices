@@ -23,6 +23,9 @@ from services.api_service.src.application.use_cases.job import (
     DeleteJobUseCase,
 )
 
+# Import MongoDB infrastructure
+from shared.shared_infrastructure.src.mongodb import MongoDBConfig
+
 logger = get_logger(__name__)
 
 
@@ -119,6 +122,18 @@ def create_app(config: Config = None, container: ServiceContainer = None) -> Fla
     if config.SWAGGER_ENABLED:
         _setup_swagger(app, config)
     
+    # Setup MongoDB cleanup on app shutdown
+    @app.teardown_appcontext
+    def cleanup_mongodb(exc=None):
+        """Gracefully close MongoDB connection on shutdown."""
+        try:
+            mongo_manager = container.resolve("mongo_manager")
+            if mongo_manager:
+                mongo_manager.disconnect()
+                logger.info("MongoDB connection closed gracefully")
+        except Exception as e:
+            logger.warning(f"Error closing MongoDB connection: {e}")
+    
     logger.info(
         f"Flask application created successfully",
         extra={"service": config.SERVICE_NAME}
@@ -131,24 +146,64 @@ def _register_repositories_and_use_cases(container: ServiceContainer) -> None:
     """Register repositories and use cases with the dependency injection container
     
     This function:
-    1. Registers the Job repository
-    2. Registers all Job use cases
-    3. Registers optional event publisher
+    1. Creates and connects to MongoDB
+    2. Registers the Job repository
+    3. Registers all Job use cases
+    4. Registers optional event publisher
     
     Args:
         container: ServiceContainer instance
+    
+    Raises:
+        Exception: If MongoDB connection fails or repository registration fails
     """
     
     try:
-        # Register Job Repository
-        # TODO: Inject MongoDB client once available
-        job_repository = MongoJobRepository(db_client=None)
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        # 1. Create and connect to MongoDB
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        
+        logger.info("Initializing MongoDB connection")
+        
+        # Create MongoDB config from environment
+        mongo_config = MongoDBConfig.from_env()
+        logger.debug(
+            "MongoDB config loaded",
+            extra={
+                "environment": mongo_config.environment,
+                "pool_size": f"{mongo_config.resolve_pool_sizes()}",
+            }
+        )
+        
+        # Create connection manager
+        mongo_manager = mongo_config.create_connection_manager()
+        
+        # Establish connection (with validation)
+        mongo_manager.connect()
+        logger.info("MongoDB connection established successfully")
+        
+        # Get database handle for this service
+        db = mongo_manager.get_database("api_service")
+        logger.debug(f"Connected to database: {db.name}")
+        
+        # Register in container for access elsewhere
+        container.register_instance("mongo_manager", mongo_manager)
+        container.register_instance("database", db)
+        logger.debug("Registered mongo_manager and database")
+        
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        # 2. Register Job Repository
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        
+        # Create repository with database handle
+        job_repository = MongoJobRepository(database=db)
         container.register_instance("job_repository", job_repository)
         logger.debug("Registered job_repository")
         
         # Register optional event publisher (placeholder)
         # TODO: Implement real event publisher
         container.register_instance("event_publisher", None)
+        logger.debug("Registered event_publisher (None/placeholder)")
         
         # Register Job Use Cases
         container.register(

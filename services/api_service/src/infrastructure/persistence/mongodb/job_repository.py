@@ -1,124 +1,100 @@
-# MongoDB implementation of Job repository
+"""infrastructure/persistence/mongodb/job_repository.py  (api_service)
 
-from typing import Optional, List, Tuple
+FULL production implementation replacing the previous stub.
+
+Document schema (collection: jobs):
+{
+    "_id":              "uuid-string",
+    "user_id":          "uuid-string | null",
+    "job_type":         "inference",
+    "status":           "pending",
+    "priority":         5,
+    "input_data":       { … },
+    "result":           { … } | null,
+    "error":            "string | null",
+    "timeout_seconds":  300 | null,
+    "started_at":       ISODate | null,
+    "completed_at":     ISODate | null,
+    "created_at":       ISODate,
+    "updated_at":       ISODate
+}
+
+Indexes (see ensure_indexes):
+  1. (user_id, created_at desc)     — per-user job list, newest first
+  2. (status, created_at desc)      — status-based worker queue polling
+  3. (user_id, status)              — filtered list queries
+  4. (job_type, status)             — analytics / admin queries
+  5. (priority desc, created_at)    — priority-aware queue polling
+"""
+
+from __future__ import annotations
+
+import logging
 from datetime import datetime
-from services.api_service.src.logger import get_logger
-from services.api_service.src.domain.entities.job import Job
-from services.api_service.src.domain.repositories.job_repository import IJobRepository
+from typing import Any, Dict, List, Optional, Tuple
 
-logger = get_logger(__name__)
+from pymongo import ASCENDING, DESCENDING, IndexModel
+from pymongo.database import Database
+
+from ....domain.entities.job import Job
+from ....domain.repositories.job_repository import IJobRepository
+from shared.shared_infrastructure.src.mongodb.base_repository import (
+    MongoBaseRepository,
+    RepositoryError,
+)
+
+logger = logging.getLogger(__name__)
 
 
-class RepositoryError(Exception):
-    """Repository operation error"""
-    pass
+class MongoJobRepository(MongoBaseRepository[Job], IJobRepository):
+    """Full MongoDB implementation of IJobRepository."""
 
-
-class MongoJobRepository(IJobRepository):
-    """MongoDB implementation of Job repository
-    
-    Persists Job domain entities to MongoDB.
-    Maps between domain entities and MongoDB documents.
-    
-    Collection: jobs
-    Indexes:
-    - _id (automatic)
-    - user_id, status
-    - user_id, created_at
-    - status, created_at
-    """
-    
     COLLECTION_NAME = "jobs"
-    
-    def __init__(self, db_client: Optional[object] = None):
-        """Initialize MongoDB repository
-        
-        Args:
-            db_client: MongoDB client (injected, can be mocked)
-        """
-        
-        self.db_client = db_client
-        self._collection = None
-    
-    def _get_collection(self):
-        """Get MongoDB collection
-        
-        Returns:
-            MongoDB collection object
-        """
-        
-        if self._collection is None:
-            if not self.db_client:
-                raise RepositoryError("Database client not initialized")
-            
-            # This is a placeholder - actual implementation would get the database
-            # from the client and collection from the database
-            # e.g., self._collection = self.db_client.database.jobs
-            pass
-        
-        return self._collection
-    
-    def save(self, job: Job) -> Job:
-        """Save job to MongoDB
-        
-        Args:
-            job: Job entity to save
-        
-        Returns:
-            Saved job with ID populated
-        
-        Raises:
-            RepositoryError: If save operation fails
-        """
-        
-        try:
-            # Convert entity to MongoDB document
-            document = self._entity_to_document(job)
-            
-            # TODO: Implement MongoDB save
-            # collection = self._get_collection()
-            # if job.id:
-            #     collection.replace_one({"_id": job.id}, document, upsert=True)
-            # else:
-            #     result = collection.insert_one(document)
-            #     job.id = str(result.inserted_id)
-            
-            # Placeholder: return job as-is for now
-            logger.debug(f"Job saved: {job.id}")
-            return job
-        
-        except Exception as e:
-            logger.error(f"Failed to save job: {e}", exc_info=True)
-            raise RepositoryError(f"Failed to save job: {e}")
-    
-    def find_by_id(self, job_id: str) -> Optional[Job]:
-        """Find job by ID
-        
-        Args:
-            job_id: Job ID
-        
-        Returns:
-            Job entity or None if not found
-        
-        Raises:
-            RepositoryError: If query fails
-        """
-        
-        try:
-            # TODO: Implement MongoDB query
-            # collection = self._get_collection()
-            # document = collection.find_one({"_id": job_id})
-            # if document:
-            #     return self._document_to_entity(document)
-            # return None
-            
-            logger.debug(f"Job query by ID: {job_id}")
-            return None
-        
-        except Exception as e:
-            logger.error(f"Failed to find job: {e}", exc_info=True)
-            raise RepositoryError(f"Failed to find job: {e}")
-    
+
+    def __init__(self, database: Database) -> None:
+        super().__init__(database)
+
+    # ── Indexes ──────────────────────────────────────────────────────────────
+
+    def ensure_indexes(self) -> None:
+        indexes = [
+            # Per-user chronological listing (most common API query)
+            IndexModel(
+                [("user_id", ASCENDING), ("created_at", DESCENDING)],
+                name="idx_user_created",
+                background=True,
+            ),
+            # Status-based polling (workers fetch PENDING jobs)
+            IndexModel(
+                [("status", ASCENDING), ("created_at", DESCENDING)],
+                name="idx_status_created",
+                background=True,
+            ),
+            # Combined user + status filter (dashboard)
+            IndexModel(
+                [("user_id", ASCENDING), ("status", ASCENDING)],
+                name="idx_user_status",
+                background=True,
+            ),
+            # Analytics / admin
+            IndexModel(
+                [("job_type", ASCENDING), ("status", ASCENDING)],
+                name="idx_type_status",
+                background=True,
+            ),
+            # Priority queue: highest priority (low int), oldest first
+            IndexModel(
+                [("priority", ASCENDING), ("created_at", ASCENDING)],
+                name="idx_priority_queue",
+                background=True,
+                partialFilterExpression={"status": "pending"},  # only pending jobs
+            ),
+        ]
+        self._db[self.COLLECTION_NAME].create_indexes(indexes)
+        logger.info("jobs collection indexes ensured.")
+
+    # ── IJobRepository implementation ────────────────────────────────────────
+
     def find_all(
         self,
         user_id: Optional[str] = None,
@@ -129,236 +105,86 @@ class MongoJobRepository(IJobRepository):
         sort_by: str = "created_at",
         sort_order: str = "desc",
     ) -> Tuple[List[Job], int]:
-        """Find jobs with optional filters
-        
-        Args:
-            user_id: Filter by user
-            status: Filter by status
-            job_type: Filter by job type
-            limit: Items per page
-            offset: Starting position
-            sort_by: Field to sort by
-            sort_order: Sort order
-        
-        Returns:
-            Tuple of (jobs list, total count)
-        """
-        
-        try:
-            # Build query filters
-            query = {}
-            if user_id:
-                query["user_id"] = user_id
-            if status:
-                query["status"] = status
-            if job_type:
-                query["job_type"] = job_type
-            
-            # TODO: Implement MongoDB query
-            # collection = self._get_collection()
-            # total = collection.count_documents(query)
-            # sort_direction = -1 if sort_order == "desc" else 1
-            # documents = collection.find(query)\
-            #     .sort(sort_by, sort_direction)\
-            #     .skip(offset)\
-            #     .limit(limit)
-            # jobs = [self._document_to_entity(doc) for doc in documents]
-            # return jobs, total
-            
-            logger.debug(f"Jobs query with filters: {query}")
-            return [], 0
-        
-        except Exception as e:
-            logger.error(f"Failed to find jobs: {e}", exc_info=True)
-            raise RepositoryError(f"Failed to find jobs: {e}")
-    
+        query: Dict[str, Any] = {}
+        if user_id:
+            query["user_id"] = user_id
+        if status:
+            query["status"] = status
+        if job_type:
+            query["job_type"] = job_type
+        return self._find_paginated(query, limit, offset, sort_by, sort_order)
+
     def find_by_status(
         self,
         status: str,
         limit: int = 100,
         offset: int = 0,
     ) -> Tuple[List[Job], int]:
-        """Find jobs by status
-        
-        Args:
-            status: Job status
-            limit: Items per page
-            offset: Starting position
-        
-        Returns:
-            Tuple of (jobs list, total count)
-        """
-        
-        return self.find_all(status=status, limit=limit, offset=offset)
-    
+        return self._find_paginated(
+            {"status": status}, limit, offset, "created_at", "asc"
+        )
+
     def find_by_user(
         self,
         user_id: str,
         limit: int = 50,
         offset: int = 0,
     ) -> Tuple[List[Job], int]:
-        """Find jobs for specific user
-        
-        Args:
-            user_id: User ID
-            limit: Items per page
-            offset: Starting position
-        
-        Returns:
-            Tuple of (jobs list, total count)
-        """
-        
-        return self.find_all(user_id=user_id, limit=limit, offset=offset)
-    
+        return self._find_paginated(
+            {"user_id": user_id}, limit, offset, "created_at", "desc"
+        )
+
     def update_status(self, job_id: str, status: str) -> Optional[Job]:
-        """Update job status
-        
-        Args:
-            job_id: Job ID
-            status: New status
-        
-        Returns:
-            Updated job or None if not found
-        """
-        
-        try:
-            # TODO: Implement MongoDB update
-            # collection = self._get_collection()
-            # result = collection.find_one_and_update(
-            #     {"_id": job_id},
-            #     {"$set": {"status": status, "updated_at": datetime.utcnow()}},
-            #     return_document=True
-            # )
-            # if result:
-            #     return self._document_to_entity(result)
-            # return None
-            
-            logger.debug(f"Job status update: {job_id} → {status}")
-            return None
-        
-        except Exception as e:
-            logger.error(f"Failed to update job status: {e}", exc_info=True)
-            raise RepositoryError(f"Failed to update job status: {e}")
-    
-    def delete(self, job_id: str) -> bool:
-        """Delete job
-        
-        Args:
-            job_id: Job ID
-        
-        Returns:
-            True if deleted, False if not found
-        """
-        
-        try:
-            # TODO: Implement MongoDB delete
-            # collection = self._get_collection()
-            # result = collection.delete_one({"_id": job_id})
-            # return result.deleted_count > 0
-            
-            logger.debug(f"Job deleted: {job_id}")
-            return True
-        
-        except Exception as e:
-            logger.error(f"Failed to delete job: {e}", exc_info=True)
-            raise RepositoryError(f"Failed to delete job: {e}")
-    
-    def exists(self, job_id: str) -> bool:
-        """Check if job exists
-        
-        Args:
-            job_id: Job ID
-        
-        Returns:
-            True if exists
-        """
-        
-        try:
-            # TODO: Implement MongoDB count
-            # collection = self._get_collection()
-            # return collection.count_documents({"_id": job_id}) > 0
-            
-            return False
-        
-        except Exception as e:
-            logger.error(f"Failed to check job exists: {e}", exc_info=True)
-            raise RepositoryError(f"Failed to check job exists: {e}")
-    
+        """Targeted partial update — only status + timestamps change."""
+        fields: Dict[str, Any] = {"status": status}
+
+        if status == "running":
+            fields["started_at"] = datetime.utcnow()
+        elif status in ("completed", "failed", "cancelled"):
+            fields["completed_at"] = datetime.utcnow()
+
+        doc = self._update_fields(job_id, fields)
+        return self._to_entity(doc) if doc else None
+
     def count(
         self,
         user_id: Optional[str] = None,
         status: Optional[str] = None,
     ) -> int:
-        """Count jobs
-        
-        Args:
-            user_id: Optional user filter
-            status: Optional status filter
-        
-        Returns:
-            Count of matching jobs
-        """
-        
         try:
-            query = {}
+            query: Dict[str, Any] = {}
             if user_id:
                 query["user_id"] = user_id
             if status:
                 query["status"] = status
-            
-            # TODO: Implement MongoDB count
-            # collection = self._get_collection()
-            # return collection.count_documents(query)
-            
-            return 0
-        
-        except Exception as e:
-            logger.error(f"Failed to count jobs: {e}", exc_info=True)
-            raise RepositoryError(f"Failed to count jobs: {e}")
-    
-    @staticmethod
-    def _entity_to_document(job: Job) -> dict:
-        """Convert Job entity to MongoDB document
-        
-        Args:
-            job: Job entity
-        
-        Returns:
-            MongoDB document (dict)
-        """
-        
+            return self._collection.count_documents(query)
+        except Exception as exc:
+            raise RepositoryError(f"count failed: {exc}") from exc
+
+    # ── Document mapping ─────────────────────────────────────────────────────
+
+    def _to_document(self, entity: Job) -> Dict[str, Any]:
         return {
-            "_id": job.id,
-            "user_id": job.user_id,
-            "job_type": job.job_type,
-            "status": job.status,
-            "priority": job.priority,
-            "input_data": job.input_data,
-            "result": job.result,
-            "error": job.error,
-            "created_at": job.created_at,
-            "started_at": job.started_at,
-            "completed_at": job.completed_at,
-            "timeout_seconds": job.timeout_seconds,
-            "updated_at": datetime.utcnow(),
+            "_id": entity.id,
+            "user_id": entity.user_id,
+            "job_type": entity.job_type,
+            "status": entity.status,
+            "priority": entity.priority,
+            "input_data": entity.input_data,
+            "result": entity.result,
+            "error": entity.error,
+            "timeout_seconds": entity.timeout_seconds,
+            "started_at": entity.started_at,
+            "completed_at": entity.completed_at,
+            "created_at": entity.created_at,
         }
-    
-    @staticmethod
-    def _document_to_entity(document: dict) -> Job:
-        """Convert MongoDB document to Job entity
-        
-        Args:
-            document: MongoDB document (dict)
-        
-        Returns:
-            Job entity
-        """
-        
+
+    def _to_entity(self, document: Dict[str, Any]) -> Job:
         return Job(
-            id=document.get("_id"),
+            id=document["_id"],
             user_id=document.get("user_id"),
-            job_type=document.get("job_type"),
-            status=document.get("status"),
+            job_type=document["job_type"],
+            status=document["status"],
             priority=document.get("priority", 5),
             input_data=document.get("input_data", {}),
             result=document.get("result"),

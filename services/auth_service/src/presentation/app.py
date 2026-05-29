@@ -1,5 +1,8 @@
 # Flask application factory
 
+import atexit
+import os
+
 from flask import Flask
 from flask_cors import CORS
 from flasgger import Swagger
@@ -24,6 +27,7 @@ from ..infrastructure.security.oauth_state_store import InMemoryOAuthStateStore
 from ..logger import setup_logging, get_logger
 from .routes.health import health_bp
 from .routes.v1.auth import auth_bp
+from .routes.v1.metrics import metrics_bp
 
 logger = get_logger(__name__)
 
@@ -64,6 +68,7 @@ def create_app(config: Config = None, container: ServiceContainer = None) -> Fla
     RequestContextManager.setup_request_context(app)
     register_error_handlers(app)
     _register_auth_infrastructure(container, config)
+    _wire_mongodb_if_configured(app, container, config)
     _register_use_cases(container, config)
 
     if config.CORS_ALLOWED_ORIGINS:
@@ -146,6 +151,52 @@ def _register_auth_infrastructure(container: ServiceContainer, config: Config) -
     logger.debug("Registered auth infrastructure")
 
 
+def _wire_mongodb_if_configured(
+    app: Flask, container: ServiceContainer, config: Config
+) -> None:
+    """Connect to MongoDB and wire repositories if MONGODB_URI is set.
+
+    Skips silently when the URI is absent (e.g. unit-test environments that
+    use the in-memory stubs registered by _register_auth_infrastructure).
+    """
+    from ..infrastructure.repositories.mongo_wiring import wire_mongo, teardown_mongo
+
+    mongodb_uri = getattr(config, "MONGODB_URI", None) or os.environ.get("MONGODB_URI")
+    if not mongodb_uri:
+        logger.info(
+            "MONGODB_URI not set — using in-memory repositories (development/test mode)."
+        )
+        return
+
+    try:
+        from shared.shared_infrastructure.src.mongodb import MongoConnectionManager
+
+        manager = MongoConnectionManager.from_env()
+        manager.connect()          # back-off retry built in
+
+        db_name = getattr(config, "SERVICE_NAME", "auth_service")
+        db = manager.get_database(db_name)
+
+        # Wire repos + eager index creation
+        wire_mongo(container, db, connection_manager=manager)
+
+        # Graceful shutdown — disconnect when the process exits
+        atexit.register(teardown_mongo, container)
+
+        logger.info(
+            "MongoDB wired successfully (db=%s).", db_name
+        )
+    except Exception as exc:
+        # Non-fatal: log the error but let the app start with in-memory repos.
+        # This keeps the service available for traffic that doesn't need MongoDB
+        # while an ops team resolves the connectivity issue.
+        logger.error(
+            "MongoDB wiring failed — falling back to in-memory repositories: %s",
+            exc,
+            exc_info=True,
+        )
+
+
 def _register_use_cases(container: ServiceContainer, config: Config) -> None:
     """Wire application use cases with port implementations."""
 
@@ -186,7 +237,8 @@ def _register_use_cases(container: ServiceContainer, config: Config) -> None:
 def _register_blueprints(app: Flask) -> None:
     app.register_blueprint(health_bp)
     app.register_blueprint(auth_bp)
-    logger.debug("Registered health and auth blueprints")
+    app.register_blueprint(metrics_bp)
+    logger.debug("Registered health, auth, and metrics blueprints")
 
 
 def _setup_swagger(app: Flask, config: Config) -> None:
