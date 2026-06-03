@@ -39,6 +39,20 @@ class Config:
         )
     )
     
+    # AI Worker Service
+    AI_WORKER_URL: str = field(
+        default_factory=lambda: os.getenv(
+            "AI_WORKER_URL",
+            "http://localhost:5001",
+        )
+    )
+    AI_WORKER_TIMEOUT_SECONDS: int = field(
+        default_factory=lambda: int(os.getenv("AI_WORKER_TIMEOUT_SECONDS", 300))
+    )
+    AI_WORKER_POLL_INTERVAL_SECONDS: int = field(
+        default_factory=lambda: int(os.getenv("AI_WORKER_POLL_INTERVAL_SECONDS", 2))
+    )
+    
     # Caching
     REDIS_URL: str = field(
         default_factory=lambda: os.getenv(

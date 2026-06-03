@@ -40,13 +40,18 @@ class UpdateJobUseCase:
         self.repository = repository
         self.event_publisher = event_publisher
     
-    def execute(self, job_id: str, priority: Optional[int] = None) -> JobDTO:
+    def execute(self, job_id: str, priority: Optional[int] = None,
+                status: Optional[str] = None, result: Optional[dict] = None,
+                error: Optional[str] = None) -> JobDTO:
         """
         Update job.
         
         Args:
             job_id: ID of job to update
             priority: New priority (1-10)
+            status: New job status (for AI Worker status sync)
+            result: Execution result (for AI Worker result sync)
+            error: Error message (for AI Worker error sync)
         
         Returns:
             Updated JobDTO
@@ -59,7 +64,7 @@ class UpdateJobUseCase:
             if not job_id or not isinstance(job_id, str):
                 raise ValueError("job_id must be a non-empty string")
             
-            logger.debug(f"Updating job: job_id={job_id}, priority={priority}")
+            logger.debug(f"Updating job: job_id={job_id}, priority={priority}, status={status}")
             
             # Get current job
             job = self.repository.find_by_id(job_id)
@@ -72,6 +77,15 @@ class UpdateJobUseCase:
                 if priority < 1 or priority > 10:
                     raise ValueError("priority must be between 1 and 10")
                 job.priority = priority
+            
+            if status is not None:
+                job.status = status
+            
+            if result is not None:
+                job.result = result
+            
+            if error is not None:
+                job.error = error
             
             # Validate business rules
             if not job.is_valid():

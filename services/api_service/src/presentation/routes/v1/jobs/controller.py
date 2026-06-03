@@ -260,6 +260,143 @@ def get_job(job_id):
 
 
 # ---------------------------------------------------------------------------
+# GET /api/v1/jobs/<job_id>/status — Poll job status from AI Worker
+# ---------------------------------------------------------------------------
+
+@jobs_bp.route("/<job_id>/status", methods=["GET"])
+@_require_auth
+@validate_path_params(JobPathParams)
+def poll_job_status(job_id):
+    """
+    Poll job status from AI Worker.
+    
+    This endpoint checks the AI Worker for job completion and fetches results.
+    If job is already completed in MongoDB, returns cached result.
+    Otherwise, polls AI Worker for fresh status.
+
+    Requires: authenticated user; must be the job owner or an admin.
+    
+    Returns:
+    {
+        "job_id": "uuid",
+        "status": "pending|running|completed|failed",
+        "result": {...} (if completed),
+        "error": null|"error message",
+        "ai_worker_job_id": "ai-job-id" (if submitted to AI Worker)
+    }
+    """
+    try:
+        # First, get the job from MongoDB
+        use_case: GetJobUseCase = resolve_from_context("get_job_use_case")
+        job_dto = use_case.execute(job_id)
+
+        _assert_owner_or_admin(job_dto.user_id)
+
+        # Check if job is already in a terminal state
+        if job_dto.status in ["completed", "failed", "cancelled"]:
+            logger.info(
+                "Job already in terminal state",
+                extra={"job_id": job_id, "status": job_dto.status}
+            )
+            return jsonify(_format_response(
+                success=True,
+                data={
+                    "job_id": job_dto.id,
+                    "status": job_dto.status,
+                    "result": job_dto.result,
+                    "error": job_dto.error,
+                },
+                status="success",
+                code=200,
+            )), 200
+
+        # Try to get fresh status from AI Worker if available
+        ai_worker_job_id = None
+        if job_dto.result and isinstance(job_dto.result, dict):
+            ai_worker_job_id = job_dto.result.get("ai_worker_job_id")
+
+        if ai_worker_job_id:
+            try:
+                ai_worker_client = resolve_from_context("ai_worker_client")
+                ai_status = ai_worker_client.get_job_status(ai_worker_job_id)
+
+                # Update job in MongoDB if AI Worker has new status
+                if ai_status.status != job_dto.status:
+                    logger.info(
+                        "Job status updated from AI Worker",
+                        extra={
+                            "job_id": job_id,
+                            "old_status": job_dto.status,
+                            "new_status": ai_status.status,
+                        }
+                    )
+                    
+                    # Update job in database
+                    update_uc: UpdateJobUseCase = resolve_from_context("update_job_use_case")
+                    job_dto = update_uc.execute(job_id, status=ai_status.status)
+                    
+                    # If completed, store result
+                    if ai_status.status == "completed" and ai_status.result:
+                        job_dto = update_uc.execute(job_id, result=ai_status.result)
+                    elif ai_status.status == "failed" and ai_status.error:
+                        job_dto = update_uc.execute(job_id, error=ai_status.error)
+
+                return jsonify(_format_response(
+                    success=True,
+                    data={
+                        "job_id": job_dto.id,
+                        "status": job_dto.status,
+                        "result": job_dto.result,
+                        "error": job_dto.error,
+                        "ai_worker_job_id": ai_worker_job_id,
+                    },
+                    status="success",
+                    code=200,
+                )), 200
+
+            except Exception as e:
+                logger.warning(
+                    f"Failed to get status from AI Worker: {e}",
+                    extra={"job_id": job_id, "ai_worker_job_id": ai_worker_job_id}
+                )
+                # Return cached status from MongoDB
+                return jsonify(_format_response(
+                    success=True,
+                    data={
+                        "job_id": job_dto.id,
+                        "status": job_dto.status,
+                        "result": job_dto.result,
+                        "error": job_dto.error,
+                    },
+                    status="success",
+                    code=200,
+                )), 200
+        else:
+            # No AI Worker job reference, return MongoDB status
+            return jsonify(_format_response(
+                success=True,
+                data={
+                    "job_id": job_dto.id,
+                    "status": job_dto.status,
+                    "result": job_dto.result,
+                    "error": job_dto.error,
+                },
+                status="success",
+                code=200,
+            )), 200
+
+    except JobNotFoundError:
+        return jsonify(_format_response(success=False, status="error", code=404, error=f"Job '{job_id}' not found")), 404
+    except ForbiddenError:
+        raise
+    except ValueError as exc:
+        return jsonify(_format_response(success=False, status="error", code=400, error=str(exc))), 400
+    except Exception as exc:
+        logger.error(f"Error polling job status: {exc}", exc_info=True)
+        return jsonify(_format_response(success=False, status="error", code=500, error="Internal server error")), 500
+
+
+# ---------------------------------------------------------------------------
 # PUT /api/v1/jobs/<job_id> — Update job
 # ---------------------------------------------------------------------------
 

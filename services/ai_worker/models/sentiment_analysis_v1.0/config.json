@@ -1,0 +1,12 @@
+{
+  "model_id": "sentiment_analysis",
+  "version": "1.0",
+  "framework": "pytorch",
+  "architecture": "simple_mlp",
+  "input_dim": 768,
+  "hidden_dim": 256,
+  "output_dim": 3,
+  "activation": "relu",
+  "device": "cpu",
+  "quantization": "none"
+}

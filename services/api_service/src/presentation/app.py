@@ -11,9 +11,11 @@ from services.api_service.src.errors import register_error_handlers
 from services.api_service.src.presentation.middleware import register_auth_middleware
 from services.api_service.src.presentation.routes.health import health_bp
 from services.api_service.src.presentation.routes.v1.jobs.controller import jobs_bp
+from services.api_service.src.presentation.routes.v1.ai.controller import ai_bp
 
 # Import repositories and use cases
 from services.api_service.src.infrastructure.persistence.mongodb.job_repository import MongoJobRepository
+from services.api_service.src.infrastructure.external.ai_worker_client import AIWorkerClient
 from services.api_service.src.application.use_cases.job import (
     CreateJobUseCase,
     ListJobsUseCase,
@@ -22,9 +24,18 @@ from services.api_service.src.application.use_cases.job import (
     CancelJobUseCase,
     DeleteJobUseCase,
 )
+from services.api_service.src.application.use_cases.ai_processing import (
+    SubmitSummarizeUseCase,
+    SubmitSentimentUseCase,
+    SubmitProfileUseCase,
+    SyncWorkerAdapter,
+)
 
 # Import MongoDB infrastructure
 from shared.shared_infrastructure.src.mongodb import MongoDBConfig
+
+# Import AI engine
+from ai_engine.infrastructure.container import create_engine
 
 logger = get_logger(__name__)
 
@@ -205,12 +216,29 @@ def _register_repositories_and_use_cases(container: ServiceContainer) -> None:
         container.register_instance("event_publisher", None)
         logger.debug("Registered event_publisher (None/placeholder)")
         
+        # Register AI Worker Client for async job execution
+        ai_worker_url = container.resolve("config").AI_WORKER_URL
+        ai_worker_timeout = container.resolve("config").__dict__.get("AI_WORKER_TIMEOUT_SECONDS", 300)
+        ai_worker_poll_interval = container.resolve("config").__dict__.get("AI_WORKER_POLL_INTERVAL_SECONDS", 2)
+        
+        container.register(
+            "ai_worker_client",
+            lambda: AIWorkerClient(
+                base_url=ai_worker_url,
+                timeout_seconds=ai_worker_timeout,
+                poll_interval_seconds=ai_worker_poll_interval
+            ),
+            singleton=True
+        )
+        logger.debug(f"Registered ai_worker_client: {ai_worker_url}")
+        
         # Register Job Use Cases
         container.register(
             "create_job_use_case",
             lambda: CreateJobUseCase(
                 repository=container.resolve("job_repository"),
                 event_publisher=container.resolve("event_publisher"),
+                ai_worker_client=container.resolve("ai_worker_client"),
             ),
             singleton=True
         )
@@ -264,6 +292,56 @@ def _register_repositories_and_use_cases(container: ServiceContainer) -> None:
         )
         logger.debug("Registered delete_job_use_case")
         
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        # 3. Create and register AI Engine with use cases
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        
+        logger.info("Initializing AI Engine")
+        
+        # Create AI engine (synchronous worker with thread pool)
+        # It uses the ai_jobs collection in MongoDB
+        ai_jobs_collection = db["ai_jobs"]
+        ai_worker = create_engine(
+            db=db,
+            max_workers=4,
+            warmup_summarizer=False,  # Set to True to load model on startup
+        )
+        container.register_instance("ai_worker", ai_worker)
+        logger.debug("Registered ai_worker (AIJobWorker)")
+        
+        # Wrap the worker with the adapter expected by use cases
+        ai_worker_adapter = SyncWorkerAdapter(ai_worker)
+        container.register_instance("ai_worker_adapter", ai_worker_adapter)
+        logger.debug("Registered ai_worker_adapter (SyncWorkerAdapter)")
+        
+        # Register AI Use Cases
+        container.register(
+            "submit_summarize_use_case",
+            lambda: SubmitSummarizeUseCase(
+                worker=container.resolve("ai_worker_adapter"),
+            ),
+            singleton=True
+        )
+        logger.debug("Registered submit_summarize_use_case")
+        
+        container.register(
+            "submit_sentiment_use_case",
+            lambda: SubmitSentimentUseCase(
+                worker=container.resolve("ai_worker_adapter"),
+            ),
+            singleton=True
+        )
+        logger.debug("Registered submit_sentiment_use_case")
+        
+        container.register(
+            "submit_profile_use_case",
+            lambda: SubmitProfileUseCase(
+                worker=container.resolve("ai_worker_adapter"),
+            ),
+            singleton=True
+        )
+        logger.debug("Registered submit_profile_use_case")
+        
         logger.info("All repositories and use cases registered successfully")
     
     except Exception as e:
@@ -284,6 +362,10 @@ def _register_blueprints(app: Flask) -> None:
     # Health check endpoints
     app.register_blueprint(health_bp)
     logger.debug("Registered health blueprint")
+    
+    # AI Processing API (v1)
+    app.register_blueprint(ai_bp)
+    logger.debug("Registered ai blueprint")
     
     # Jobs API (v1)
     app.register_blueprint(jobs_bp)

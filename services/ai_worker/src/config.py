@@ -48,6 +48,17 @@ class Config:
     ENABLE_GPU_DETECTION: bool = field(
         default_factory=lambda: os.getenv("ENABLE_GPU_DETECTION", "true").lower() == "true"
     )
+    
+    # AI Worker Model Execution
+    AI_WORKER_MODEL_PATH: str = field(
+        default_factory=lambda: os.getenv("AI_WORKER_MODEL_PATH", "/app/models")
+    )
+    AI_WORKER_GPU_ENABLED: bool = field(
+        default_factory=lambda: os.getenv("AI_WORKER_GPU_ENABLED", "true").lower() == "true"
+    )
+    AI_WORKER_MAX_WORKERS: int = field(
+        default_factory=lambda: int(os.getenv("AI_WORKER_MAX_WORKERS", 4))
+    )
 
 
 @dataclass

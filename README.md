@@ -1,272 +1,74 @@
-# AI-Enabled Distributed Backend Platform
+# AI Processing Engine
 
-A production-grade, microservices-based backend platform designed for AI/ML workloads, built with Python 3.12+, Flask, MongoDB, RabbitMQ, and Celery.
+Clean-architecture AI micro-service with Flask + MongoDB.
 
-## Project Overview
-
-This monorepo contains a distributed system following **Clean Architecture** and **Event-Driven Architecture** principles. The platform is designed to be:
-
-- **Scalable**: Microservices architecture with asynchronous processing
-- **Maintainable**: Framework-independent business logic, strong separation of concerns
-- **Testable**: Deep dependency injection, domain-driven design
-- **Cross-platform**: Runs on Windows and Linux with containerization support
-- **Production-ready**: Comprehensive logging, error handling, security patterns
-
-## Architecture Principles
-
-### Clean Architecture Layers
-
-Each service implements four distinct layers:
-
-1. **Domain Layer** (`/domain`)
-   - Pure business logic, framework-agnostic
-   - Entities, Value Objects, Business Rules
-   - Domain Repositories (interfaces only)
-   - No external dependencies
-
-2. **Application Layer** (`/application`)
-   - Use cases and business logic orchestration
-   - DTOs for input/output contracts
-   - Application Services
-   - Depends on Domain Layer
-
-3. **Infrastructure Layer** (`/infrastructure`)
-   - Technical implementations of domain contracts
-   - Database access, external service clients
-   - Messaging adapters, caching, file storage
-   - Framework-specific integrations
-
-4. **Presentation Layer** (`/presentation`)
-   - HTTP endpoints, request/response handling
-   - Controllers/Routes, Middleware
-   - Request validation, serialization
-   - Thin layer that delegates to Application Layer
-
-### Event-Driven Communication
-
-Services communicate through a RabbitMQ-based event bus:
-- **Domain Events**: Published by the Domain Layer
-- **Integration Events**: Published by Application Layer
-- **Event Handlers**: Asynchronous processing via Celery
-
-### Dependency Rule
-
-> Code dependencies should only point inward (toward the center).
-> The Domain Layer is fully isolated and testable without external dependencies.
+## Structure
 
 ```
-Presentation → Application → Domain ← Infrastructure
+ai_engine/
+├── domain/              # Pure Python – models, repo interfaces
+│   ├── models.py        # AIJob, AIJobType, AIJobStatus, AIJobResult
+│   └── repositories.py  # AIJobRepository (abstract port)
+├── application/         # Use-cases & task abstractions
+│   ├── base_task.py     # BaseAITask (contract for every AI task)
+│   ├── orchestrator.py  # AIJobOrchestrator (lifecycle manager)
+│   └── tasks/
+│       ├── summarization.py
+│       ├── sentiment_analysis.py
+│       └── dataset_profiling.py
+├── infrastructure/      # Framework-specific adapters
+│   ├── persistence/
+│   │   └── mongo_repository.py  # MongoAIJobRepository
+│   ├── workers/
+│   │   └── job_worker.py        # AIJobWorker (ThreadPoolExecutor)
+│   └── container.py             # Dependency wiring / factory
+└── interfaces/
+    └── flask_routes.py  # REST Blueprint
 ```
 
-## Services
-
-### api_service
-**Responsibility**: API gateway and orchestration service
-
-- RESTful API endpoints
-- Cross-cutting concerns (rate limiting, request/response transformation)
-- Orchestrates calls to other services
-- Routes events to appropriate handlers
-
-**Tech Stack**: Flask, Flask-RESTful, PyJWT
-
-### auth_service
-**Responsibility**: Authentication and Authorization
-
-- User registration and login
-- JWT token generation and validation
-- Permission and role management
-- User profile management
-
-**Tech Stack**: Flask, PyJWT, bcrypt, python-jose
-
-### ai_worker
-**Responsibility**: AI/ML Workload Processing
-
-- Long-running inference and training tasks
-- Batch processing of AI models
-- Result computation and storage
-- Health monitoring and error recovery
-
-**Tech Stack**: Flask, Celery, scikit-learn, TensorFlow/PyTorch (optional)
-
-### notification_service
-**Responsibility**: Asynchronous Notifications
-
-- Email notifications
-- Push notifications
-- SMS notifications
-- Notification templating and scheduling
-
-**Tech Stack**: Flask, Celery, python-dotenv, EmailService
-
-## Shared Modules
-
-### shared_kernel
-**Responsibility**: Core domain abstractions
-
-- Base Entity and Value Object classes
-- Common domain exceptions
-- Repository interfaces
-- Service locator patterns
-
-### shared_events
-**Responsibility**: Event definitions and contracts
-
-- Domain event base classes
-- Integration event schemas
-- Event registry
-- Event serialization/deserialization
-
-### shared_utils
-**Responsibility**: Cross-cutting utilities
-
-- Logging and tracing
-- Error handling and custom exceptions
-- Type hints and validators
-- Helper utilities (date, string, collection helpers)
-
-## Project Structure
-
-```
-AI_MICROSERVICES/
-├── services/
-│   ├── api_service/
-│   ├── auth_service/
-│   ├── ai_worker/
-│   └── notification_service/
-├── shared/
-│   ├── shared_kernel/
-│   ├── shared_events/
-│   └── shared_utils/
-├── infrastructure/
-│   ├── docker/
-│   │   ├── Dockerfile.api_service
-│   │   ├── Dockerfile.auth_service
-│   │   ├── Dockerfile.ai_worker
-│   │   └── Dockerfile.notification_service
-│   └── kubernetes/
-├── config/
-│   └── environments/
-│       ├── .env.development
-│       ├── .env.staging
-│       └── .env.production
-├── scripts/
-│   ├── dev/
-│   ├── testing/
-│   └── deployment/
-├── docs/
-│   ├── ARCHITECTURE.md
-│   ├── API_SPECIFICATION.md
-│   ├── DATABASE_SCHEMA.md
-│   └── DEPLOYMENT.md
-├── docker-compose.yml
-├── pyproject.toml
-└── README.md
-```
-
-## Getting Started
-
-### Prerequisites
-
-- Python 3.12+
-- Docker & Docker Compose
-- MongoDB
-- RabbitMQ
-
-### Development Setup
+## Quickstart
 
 ```bash
-# Clone and navigate to project
-cd AI_MICROSERVICES
-
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install -e .
-
-# Start services with docker-compose
-docker-compose up -d
-
-# Run migrations
-./scripts/dev/migrate.sh
-
-# Start services locally
-python -m services.api_service.main
+pip install -r requirements.txt
+export MONGO_URI=mongodb://localhost:27017/ai_engine
+export FLASK_APP=app:create_app
+flask run
 ```
 
-### Running Tests
+## Running tests
 
 ```bash
-# All tests
-pytest
-
-# Specific service
-pytest services/api_service/tests
-
-# With coverage
-pytest --cov=services --cov-report=html
+pytest                      # all tests
+pytest tests/unit           # unit only (no DB needed)
+pytest --cov=ai_engine      # with coverage
 ```
 
-## Development Workflow
-
-1. **Feature Development**: Implement in the appropriate service layer
-2. **Testing**: Write tests in `/tests` following the layer structure
-3. **Events**: Define domain/integration events in `shared_events`
-4. **Shared Code**: Extract to `shared_kernel` or `shared_utils` as needed
-5. **Documentation**: Update relevant docs in `/docs`
-
-## Environment Configuration
-
-Services read from `.env` files:
+## Submit a job
 
 ```bash
-# Development
-cp config/environments/.env.development .env
+# Summarization
+curl -X POST http://localhost:5000/api/ai/jobs \
+  -H "Content-Type: application/json" \
+  -d '{"job_type":"summarization","payload":{"text":"Your long text here...","max_sentences":2}}'
 
-# Production
-cp config/environments/.env.production .env
+# Sentiment analysis
+curl -X POST http://localhost:5000/api/ai/jobs \
+  -H "Content-Type: application/json" \
+  -d '{"job_type":"sentiment_analysis","payload":{"text":"This product is absolutely great!"}}'
+
+# Dataset profiling
+curl -X POST http://localhost:5000/api/ai/jobs \
+  -H "Content-Type: application/json" \
+  -d '{"job_type":"dataset_profiling","payload":{"data":[{"name":"Alice","age":30},{"name":"Bob","age":null}]}}'
+
+# Poll result
+curl http://localhost:5000/api/ai/jobs/<job_id>
 ```
 
-## Deployment
+## Adding a new AI task
 
-See [DEPLOYMENT.md](docs/DEPLOYMENT.md) for:
-- Docker image building
-- Kubernetes manifests
-- CI/CD pipeline configuration
-- Health checks and monitoring
+1. Add `MY_NEW_TASK = "my_new_task"` to `AIJobType` enum in `domain/models.py`.
+2. Create `application/tasks/my_new_task.py` extending `BaseAITask`.
+3. Register it in `infrastructure/container.py` inside `task_registry`.
 
-## Monitoring & Logging
-
-- **Logging**: Structured logging to stdout (for container collection)
-- **Tracing**: OpenTelemetry integration ready
-- **Metrics**: Prometheus-ready endpoints
-- **Health Checks**: Liveness and readiness probes
-
-## Contributing
-
-### Coding Standards
-
-- Follow PEP 8 with Black formatter
-- Type hints for all public APIs
-- Comprehensive docstrings for public methods
-- 80-120 character line length
-
-### Commit Convention
-
-```
-<type>(<scope>): <subject>
-
-<body>
-
-<footer>
-```
-
-Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`
-Scopes: `api_service`, `auth_service`, `ai_worker`, `notification_service`, `shared_kernel`
-
-## License
-
-Proprietary - Internal Use Only
+That's it — no other files change.
