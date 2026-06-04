@@ -301,13 +301,6 @@ docker-compose exec mongodb mongosh
 - [pytest Documentation](https://docs.pytest.org/)
 - [Kubernetes Documentation](https://kubernetes.io/docs/)
 
-## Support
-
-- **Docs**: `docs/` folder
-- **Issues**: GitHub Issues
-- **Chat**: Team Slack channel
-- **Email**: team@aiplatform.local
-
 ## Next Steps
 
 1. Read [ARCHITECTURE.md](docs/ARCHITECTURE.md) for system design
