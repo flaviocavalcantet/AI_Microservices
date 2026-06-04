@@ -68,9 +68,10 @@ def submit_job():
 
     worker = _get_worker()
     job = worker._orchestrator.submit_job(job_type, payload, tags)
+    submitted_status = job.status.value
     worker.enqueue(job.job_id)
 
-    return jsonify({"job_id": job.job_id, "status": job.status.value}), HTTPStatus.ACCEPTED
+    return jsonify({"job_id": job.job_id, "status": submitted_status}), HTTPStatus.ACCEPTED
 
 
 @ai_bp.route("/jobs/<string:job_id>", methods=["GET"])

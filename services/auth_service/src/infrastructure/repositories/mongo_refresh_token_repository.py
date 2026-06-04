@@ -33,8 +33,8 @@ from typing import Any, Dict, List, Optional
 from pymongo import ASCENDING, IndexModel
 from pymongo.database import Database
 
-from .....domain.entities.refresh_token import RefreshToken
-from .....application.ports.interfaces import IRefreshTokenRepository
+from services.auth_service.src.domain.entities.refresh_token import RefreshToken
+from services.auth_service.src.application.ports.interfaces import IRefreshTokenRepository
 from shared.shared_infrastructure.src.mongodb.base_repository import (
     MongoBaseRepository,
     RepositoryError,

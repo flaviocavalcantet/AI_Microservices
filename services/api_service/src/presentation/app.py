@@ -1,5 +1,7 @@
 # Flask application factory
 
+import os
+
 from flask import Flask
 from flask_cors import CORS
 from flasgger import Swagger
@@ -16,6 +18,7 @@ from services.api_service.src.presentation.routes.v1.ai.controller import ai_bp
 # Import repositories and use cases
 from services.api_service.src.infrastructure.persistence.mongodb.job_repository import MongoJobRepository
 from services.api_service.src.infrastructure.external.ai_worker_client import AIWorkerClient
+from services.api_service.src.domain.entities.job import Job
 from services.api_service.src.application.use_cases.job import (
     CreateJobUseCase,
     ListJobsUseCase,
@@ -35,6 +38,7 @@ from services.api_service.src.application.use_cases.ai_processing import (
 from shared.shared_infrastructure.src.mongodb import MongoDBConfig
 
 # Import AI engine
+from ai_engine.domain.models import AIJob, AIJobType
 from ai_engine.infrastructure.container import create_engine
 
 logger = get_logger(__name__)
@@ -124,7 +128,7 @@ def create_app(config: Config = None, container: ServiceContainer = None) -> Fla
         logger.debug(f"CORS configured for: {config.CORS_ALLOWED_ORIGINS}")
     
     # Register repositories and use cases
-    _register_repositories_and_use_cases(container)
+    _register_repositories_and_use_cases(container, config)
     
     # Register blueprints
     _register_blueprints(app)
@@ -153,7 +157,7 @@ def create_app(config: Config = None, container: ServiceContainer = None) -> Fla
     return app
 
 
-def _register_repositories_and_use_cases(container: ServiceContainer) -> None:
+def _register_repositories_and_use_cases(container: ServiceContainer, config: Config) -> None:
     """Register repositories and use cases with the dependency injection container
     
     This function:
@@ -169,6 +173,10 @@ def _register_repositories_and_use_cases(container: ServiceContainer) -> None:
         Exception: If MongoDB connection fails or repository registration fails
     """
     
+    if config.TESTING:
+        _register_testing_repositories_and_use_cases(container)
+        return
+
     try:
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         # 1. Create and connect to MongoDB
@@ -176,8 +184,17 @@ def _register_repositories_and_use_cases(container: ServiceContainer) -> None:
         
         logger.info("Initializing MongoDB connection")
         
-        # Create MongoDB config from environment
-        mongo_config = MongoDBConfig.from_env()
+        # Create MongoDB config from the loaded app config. Some tests and
+        # programmatic callers pass a Config object without mutating os.environ.
+        old_mongodb_uri = os.environ.get("MONGODB_URI")
+        os.environ["MONGODB_URI"] = config.MONGODB_URI
+        try:
+            mongo_config = MongoDBConfig.from_env()
+        finally:
+            if old_mongodb_uri is None:
+                os.environ.pop("MONGODB_URI", None)
+            else:
+                os.environ["MONGODB_URI"] = old_mongodb_uri
         logger.debug(
             "MongoDB config loaded",
             extra={
@@ -347,6 +364,129 @@ def _register_repositories_and_use_cases(container: ServiceContainer) -> None:
     except Exception as e:
         logger.error(f"Error registering repositories and use cases: {e}", exc_info=True)
         raise
+
+
+def _register_testing_repositories_and_use_cases(container: ServiceContainer) -> None:
+    """Register dependency-light in-memory services for unit tests."""
+    job_repository = _InMemoryJobRepository()
+    container.register_instance("mongo_manager", None)
+    container.register_instance("database", None)
+    container.register_instance("job_repository", job_repository)
+    container.register_instance("event_publisher", None)
+    container.register_instance("ai_worker_client", None)
+
+    container.register(
+        "create_job_use_case",
+        lambda: CreateJobUseCase(repository=job_repository, event_publisher=None, ai_worker_client=None),
+        singleton=True,
+    )
+    container.register(
+        "list_jobs_use_case",
+        lambda: ListJobsUseCase(repository=job_repository),
+        singleton=True,
+    )
+    container.register(
+        "get_job_use_case",
+        lambda: GetJobUseCase(repository=job_repository),
+        singleton=True,
+    )
+    container.register(
+        "update_job_use_case",
+        lambda: UpdateJobUseCase(repository=job_repository, event_publisher=None),
+        singleton=True,
+    )
+    container.register(
+        "cancel_job_use_case",
+        lambda: CancelJobUseCase(repository=job_repository, event_publisher=None),
+        singleton=True,
+    )
+    container.register(
+        "delete_job_use_case",
+        lambda: DeleteJobUseCase(repository=job_repository, event_publisher=None),
+        singleton=True,
+    )
+
+    worker_adapter = _TestingWorkerAdapter()
+    container.register_instance("ai_worker_adapter", worker_adapter)
+    container.register(
+        "submit_summarize_use_case",
+        lambda: SubmitSummarizeUseCase(worker=worker_adapter),
+        singleton=True,
+    )
+    container.register(
+        "submit_sentiment_use_case",
+        lambda: SubmitSentimentUseCase(worker=worker_adapter),
+        singleton=True,
+    )
+    container.register(
+        "submit_profile_use_case",
+        lambda: SubmitProfileUseCase(worker=worker_adapter),
+        singleton=True,
+    )
+
+
+class _InMemoryJobRepository:
+    def __init__(self) -> None:
+        self._jobs: dict[str, Job] = {}
+
+    def save(self, job: Job) -> Job:
+        self._jobs[job.id] = job
+        return job
+
+    def find_by_id(self, job_id: str) -> Job | None:
+        return self._jobs.get(job_id)
+
+    def find_all(
+        self,
+        user_id: str | None = None,
+        status: str | None = None,
+        job_type: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+        sort_by: str = "created_at",
+        sort_order: str = "desc",
+    ) -> tuple[list[Job], int]:
+        jobs = list(self._jobs.values())
+        if user_id is not None:
+            jobs = [job for job in jobs if job.user_id == user_id]
+        if status is not None:
+            jobs = [job for job in jobs if job.status == status]
+        if job_type is not None:
+            jobs = [job for job in jobs if job.job_type == job_type]
+        reverse = sort_order == "desc"
+        jobs.sort(key=lambda job: getattr(job, sort_by), reverse=reverse)
+        return jobs[offset : offset + limit], len(jobs)
+
+    def find_by_status(self, status: str, limit: int = 100, offset: int = 0) -> tuple[list[Job], int]:
+        return self.find_all(status=status, limit=limit, offset=offset)
+
+    def find_by_user(self, user_id: str, limit: int = 50, offset: int = 0) -> tuple[list[Job], int]:
+        return self.find_all(user_id=user_id, limit=limit, offset=offset)
+
+    def update_status(self, job_id: str, status: str) -> Job | None:
+        job = self.find_by_id(job_id)
+        if job is None:
+            return None
+        job.status = status
+        return self.save(job)
+
+    def delete(self, job_id: str) -> bool:
+        return self._jobs.pop(job_id, None) is not None
+
+    def exists(self, job_id: str) -> bool:
+        return job_id in self._jobs
+
+    def count(self, user_id: str | None = None, status: str | None = None) -> int:
+        _, total = self.find_all(user_id=user_id, status=status)
+        return total
+
+
+class _TestingWorkerAdapter:
+    def submit_job_sync(self, job_type: AIJobType, payload: dict, tags: dict) -> AIJob:
+        return AIJob(job_type=job_type, payload=payload, tags=tags)
+
+    def get_job_sync(self, job_id: str) -> AIJob:
+        return AIJob(job_type=AIJobType.SUMMARIZATION, payload={}, job_id=job_id)
 
 
 def _register_blueprints(app: Flask) -> None:

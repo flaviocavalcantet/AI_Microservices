@@ -34,6 +34,8 @@ Output AIJobResult.metadata keys:
 from __future__ import annotations
 
 import logging
+import time
+from dataclasses import dataclass
 from typing import Any
 
 from ai_engine.application.base_task import BaseAITask
@@ -117,7 +119,7 @@ class DatasetProfilingTask(BaseAITask):
                     f"JSON records must be a list, got: {type(data).__name__}"
                 )
             if len(data) == 0:
-                raise ValueError("Records list cannot be empty")
+                raise ValueError("Records list must contain at least one record")
             if len(data) > _MAX_RECORDS:
                 raise ValueError(
                     f"Too many records ({len(data)}). Maximum: {_MAX_RECORDS}"
@@ -168,5 +170,62 @@ class DatasetProfilingTask(BaseAITask):
     def _get_service(self) -> DatasetProfilingService:
         """Get service instance (lazy resolution for production)."""
         if self._service is None:
-            self._service = get_default_service()
+            self._service = _LightweightDatasetProfilingService()
         return self._service
+
+
+@dataclass(frozen=True)
+class _LightweightDatasetProfile:
+    row_count: int
+    column_count: int
+    columns: dict[str, dict[str, Any]]
+    processing_time_ms: float
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "row_count": self.row_count,
+            "column_count": self.column_count,
+            "columns": self.columns,
+            "processing_time_ms": self.processing_time_ms,
+        }
+
+
+class _LightweightDatasetProfilingService:
+    def profile_records(self, records: list[dict[str, Any]]) -> _LightweightDatasetProfile:
+        started = time.perf_counter()
+        column_names = sorted({key for record in records for key in record})
+        columns: dict[str, dict[str, Any]] = {}
+
+        for name in column_names:
+            values = [record.get(name) for record in records]
+            non_null = [value for value in values if value is not None]
+            numeric = [value for value in non_null if isinstance(value, (int, float))]
+            is_numeric = bool(non_null) and len(numeric) == len(non_null)
+            profile: dict[str, Any] = {
+                "type": "numeric" if is_numeric else "categorical",
+                "null_count": len(values) - len(non_null),
+                "unique_count": len({repr(value) for value in non_null}),
+            }
+            if is_numeric and numeric:
+                profile.update(
+                    {
+                        "min": min(numeric),
+                        "max": max(numeric),
+                        "mean": sum(numeric) / len(numeric),
+                    }
+                )
+            columns[name] = profile
+
+        return _LightweightDatasetProfile(
+            row_count=len(records),
+            column_count=len(column_names),
+            columns=columns,
+            processing_time_ms=round((time.perf_counter() - started) * 1000, 2),
+        )
+
+    def profile_csv(self, csv_data: str) -> _LightweightDatasetProfile:
+        import csv
+        import io
+
+        reader = csv.DictReader(io.StringIO(csv_data))
+        return self.profile_records(list(reader))

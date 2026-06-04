@@ -32,8 +32,8 @@ from typing import Any, Dict, Optional
 from pymongo import ASCENDING, IndexModel
 from pymongo.database import Database
 
-from .....domain.entities.user import User
-from .....application.ports.interfaces import IUserRepository
+from services.auth_service.src.domain.entities.user import User
+from services.auth_service.src.application.ports.interfaces import IUserRepository
 from shared.shared_infrastructure.src.mongodb.base_repository import (
     MongoBaseRepository,
     RepositoryError,

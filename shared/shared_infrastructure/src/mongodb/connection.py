@@ -237,7 +237,6 @@ class MongoConnectionManager:
 
         last_exc: Optional[Exception] = None
         for attempt in range(self._max_retries):
-            self.metrics.record_connect_attempt(success=False)  # tentative
             try:
                 logger.info(
                     "MongoConnectionManager: opening connection pool (attempt %d/%d) …",
@@ -247,12 +246,11 @@ class MongoConnectionManager:
                 client = MongoClient(self._uri, **self._client_kwargs)
                 client.admin.command("ping")
                 self._client = client
-                # Overwrite the pessimistic counter set above
-                self.metrics.connect_attempts -= 1
                 self.metrics.record_connect_attempt(success=True)
                 logger.info("MongoConnectionManager: connected successfully.")
                 return
             except (ConnectionFailure, ServerSelectionTimeoutError) as exc:
+                self.metrics.record_connect_attempt(success=False)
                 last_exc = exc
                 delay = min(self._retry_delay * (2 ** attempt), 30.0)
                 logger.warning(

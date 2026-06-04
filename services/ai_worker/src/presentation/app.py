@@ -12,6 +12,7 @@ from ..core.model_executor import ModelExecutor
 from ..infrastructure.capabilities.system_detector import SystemCapabilityDetector
 from ..infrastructure.jobs.job_manager import JobManager
 from ..infrastructure.messaging.celery_app import create_celery_app
+from ..infrastructure.workloads.placeholder_runner import PlaceholderWorkloadRunner
 from ..logger import get_logger, setup_logging
 from .routes.jobs import create_jobs_blueprint
 
@@ -46,6 +47,7 @@ def create_app(config: Config = None, container: ServiceContainer = None) -> Fla
 def _register_worker_infrastructure(container: ServiceContainer, config: Config) -> None:
     container.register_instance("celery_app", create_celery_app(config))
     container.register("capability_detector", SystemCapabilityDetector, singleton=True)
+    container.register("workload_runner", PlaceholderWorkloadRunner, singleton=True)
     
     # Register job manager for async job tracking
     container.register("job_manager", lambda: JobManager(), singleton=True)

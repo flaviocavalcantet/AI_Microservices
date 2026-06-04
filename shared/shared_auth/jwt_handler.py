@@ -175,6 +175,8 @@ class HMACJWTHandler(JWTHandler):
             token,
             self.secret_key,
             algorithms=self.algorithms,
+            issuer=self.issuer,
+            audience=self.audience,
         )
         
         # Validate issuer and audience
@@ -225,6 +227,8 @@ class RSAJWTHandler(JWTHandler):
             token,
             self.public_key,
             algorithms=self.algorithms,
+            issuer=self.issuer,
+            audience=self.audience,
         )
         
         # Validate issuer and audience
