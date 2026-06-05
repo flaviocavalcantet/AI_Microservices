@@ -26,7 +26,7 @@ Indexes:
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 from pymongo import ASCENDING, IndexModel
@@ -132,5 +132,5 @@ class MongoUserRepository(MongoBaseRepository[User], IUserRepository):
             is_active=document.get("is_active", True),
             avatar_url=document.get("avatar_url"),
             last_login_at=document.get("last_login_at"),
-            created_at=document.get("created_at", datetime.utcnow()),
+            created_at=document.get("created_at", datetime.now(timezone.utc)),
         )

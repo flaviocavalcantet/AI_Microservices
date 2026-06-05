@@ -11,7 +11,7 @@ Design:
 """
 
 import jwt
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 from abc import ABC, abstractmethod
 
@@ -100,8 +100,8 @@ class JWTHandler(ABC):
                 user_id=claims["sub"],
                 roles=roles,
                 session_id=claims["session_id"],
-                issued_at=datetime.utcfromtimestamp(claims["iat"]),
-                expires_at=datetime.utcfromtimestamp(claims["exp"]),
+                issued_at=datetime.fromtimestamp(claims["iat"], tz=timezone.utc),
+                expires_at=datetime.fromtimestamp(claims["exp"], tz=timezone.utc),
                 jti=claims["jti"],
                 email=claims.get("email"),
                 provider=claims.get("provider"),

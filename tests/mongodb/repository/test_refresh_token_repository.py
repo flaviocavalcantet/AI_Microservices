@@ -8,7 +8,7 @@ revoke_session, delete_expired, document mapping, and index declarations.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from unittest.mock import MagicMock, PropertyMock, call, patch
 
 import pytest
@@ -273,7 +273,7 @@ class TestToEntity:
     @pytest.mark.unit
     @pytest.mark.mongodb
     def test_nullable_fields_default_to_none(self, repo):
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         doc = {
             "_id": "t1",
             "token_hash": "hash",

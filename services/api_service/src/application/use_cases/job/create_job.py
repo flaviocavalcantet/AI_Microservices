@@ -184,7 +184,7 @@ class CreateJobUseCase:
                 "user_id": job.user_id,
                 "job_type": job.job_type,
                 "priority": job.priority,
-                "created_at": job.created_at.isoformat() + "Z",
+                "created_at": job.created_at.isoformat().replace("+00:00", "Z"),
                 "input_data": job.input_data,
             }
             
@@ -216,8 +216,8 @@ class CreateJobUseCase:
             job_type=job.job_type,
             status=job.status,
             priority=job.priority,
-            created_at=job.created_at.isoformat() + "Z",
-            completed_at=job.completed_at.isoformat() + "Z" if job.completed_at else None,
+            created_at=job.created_at.isoformat().replace("+00:00", "Z"),
+            completed_at=job.completed_at.isoformat().replace("+00:00", "Z") if job.completed_at else None,
             result=job.result,
             error=job.error,
         )

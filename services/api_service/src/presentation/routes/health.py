@@ -2,7 +2,7 @@
 
 from flask import Blueprint, jsonify, current_app, g
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ def health_check():
         response = {
             "status": "healthy",
             "service": current_app.config.get("SERVICE_NAME", "api_service"),
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         }
         
         return jsonify(response), 200
@@ -41,7 +41,7 @@ def health_check():
             "status": "unhealthy",
             "service": current_app.config.get("SERVICE_NAME", "api_service"),
             "error": str(e),
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         }
         
         return jsonify(response), 503
@@ -101,7 +101,7 @@ def readiness_check():
         "status": "ready" if all_healthy else "not_ready",
         "service": current_app.config.get("SERVICE_NAME", "api_service"),
         "dependencies": dependencies,
-        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
     }
     
     status_code = 200 if all_healthy else 503
@@ -123,7 +123,7 @@ def liveness_check():
     try:
         response = {
             "status": "alive",
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         }
         return jsonify(response), 200
     
@@ -142,7 +142,7 @@ def metrics_summary():
     
     response = {
         "service": current_app.config.get("SERVICE_NAME", "api_service"),
-        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "metrics": {
             # Placeholder for actual metrics
             "requests_total": 0,

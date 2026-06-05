@@ -1,7 +1,7 @@
 # Job domain entity
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Dict, Any
 from uuid import uuid4
 from services.api_service.src.domain.value_objects.job_status import JobStatus, Priority
@@ -37,7 +37,7 @@ class Job:
     input_data: Dict[str, Any]
     result: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     timeout_seconds: Optional[int] = None
@@ -87,7 +87,7 @@ class Job:
             input_data=input_data or {},
             result=None,
             error=None,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
             started_at=None,
             completed_at=None,
             timeout_seconds=timeout_seconds,
@@ -108,7 +108,7 @@ class Job:
             )
         
         self.status = JobStatus.RUNNING
-        self.started_at = datetime.utcnow()
+        self.started_at = datetime.now(timezone.utc)
     
     def complete(self, result: Dict[str, Any]) -> None:
         """Mark job as completed with result
@@ -127,7 +127,7 @@ class Job:
         
         self.status = JobStatus.COMPLETED
         self.result = result
-        self.completed_at = datetime.utcnow()
+        self.completed_at = datetime.now(timezone.utc)
         self.error = None
     
     def fail(self, error_message: str) -> None:
@@ -148,7 +148,7 @@ class Job:
         self.status = JobStatus.FAILED
         self.error = error_message
         self.result = None
-        self.completed_at = datetime.utcnow()
+        self.completed_at = datetime.now(timezone.utc)
     
     def cancel(self) -> None:
         """Cancel the job
@@ -163,7 +163,7 @@ class Job:
             )
         
         self.status = JobStatus.CANCELLED
-        self.completed_at = datetime.utcnow()
+        self.completed_at = datetime.now(timezone.utc)
     
     def is_valid(self) -> bool:
         """Check if job satisfies business rule invariants
@@ -225,7 +225,7 @@ class Job:
         if not self.started_at:
             return None
         
-        end_time = self.completed_at or datetime.utcnow()
+        end_time = self.completed_at or datetime.now(timezone.utc)
         elapsed = (end_time - self.started_at).total_seconds()
         
         return elapsed
@@ -262,9 +262,9 @@ class Job:
             "input_data": self.input_data,
             "result": self.result,
             "error": self.error,
-            "created_at": self.created_at.isoformat() + "Z" if self.created_at else None,
-            "started_at": self.started_at.isoformat() + "Z" if self.started_at else None,
-            "completed_at": self.completed_at.isoformat() + "Z" if self.completed_at else None,
+            "created_at": self.created_at.isoformat().replace("+00:00", "Z") if self.created_at else None,
+            "started_at": self.started_at.isoformat().replace("+00:00", "Z") if self.started_at else None,
+            "completed_at": self.completed_at.isoformat().replace("+00:00", "Z") if self.completed_at else None,
             "timeout_seconds": self.timeout_seconds,
         }
     

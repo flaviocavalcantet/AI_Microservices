@@ -27,7 +27,7 @@ Indexes:
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from pymongo import ASCENDING, IndexModel
@@ -107,7 +107,7 @@ class MongoRefreshTokenRepository(MongoBaseRepository[RefreshToken], IRefreshTok
         Returns the number of tokens revoked.
         """
         try:
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             result = self._collection.update_many(
                 {"session_id": session_id, "revoked_at": None},
                 {"$set": {"revoked_at": now, "revoked_reason": reason, "updated_at": now}},
@@ -126,7 +126,7 @@ class MongoRefreshTokenRepository(MongoBaseRepository[RefreshToken], IRefreshTok
         """
         try:
             result = self._collection.delete_many(
-                {"expires_at": {"$lte": datetime.utcnow()}}
+                {"expires_at": {"$lte": datetime.now(timezone.utc)}}
             )
             return result.deleted_count
         except Exception as exc:
@@ -155,7 +155,7 @@ class MongoRefreshTokenRepository(MongoBaseRepository[RefreshToken], IRefreshTok
             user_id=document["user_id"],
             session_id=document["session_id"],
             expires_at=document["expires_at"],
-            created_at=document.get("created_at", datetime.utcnow()),
+            created_at=document.get("created_at", datetime.now(timezone.utc)),
             used_at=document.get("used_at"),
             revoked_at=document.get("revoked_at"),
             revoked_reason=document.get("revoked_reason"),

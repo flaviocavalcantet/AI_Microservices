@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import threading
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Dict, Optional
 
 
@@ -41,7 +41,7 @@ class InMemoryOAuthStateStore:
                 code_verifier=code_verifier,
                 provider=provider,
                 redirect_uri=redirect_uri,
-                expires_at=datetime.utcnow() + self._ttl,
+                expires_at=datetime.now(timezone.utc) + self._ttl,
             )
 
     def consume(self, state: str) -> Optional[OAuthStateEntry]:
@@ -50,6 +50,6 @@ class InMemoryOAuthStateStore:
             entry = self._entries.pop(state, None)
         if entry is None:
             return None
-        if entry.expires_at <= datetime.utcnow():
+        if entry.expires_at <= datetime.now(timezone.utc):
             return None
         return entry

@@ -21,7 +21,7 @@ from __future__ import annotations
 import logging
 import time
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Generic, List, Optional, Tuple, TypeVar
 
 from pymongo.collection import Collection
@@ -166,7 +166,7 @@ class MongoBaseRepository(ABC, Generic[T]):
         t0 = time.perf_counter()
         try:
             doc = self._to_document(entity)
-            doc["updated_at"] = datetime.utcnow()
+            doc["updated_at"] = datetime.now(timezone.utc)
             entity_id = doc["_id"]
 
             self._collection.replace_one(
@@ -273,7 +273,7 @@ class MongoBaseRepository(ABC, Generic[T]):
         """Atomic partial update.  Stamps updated_at.  Returns updated document or None."""
         t0 = time.perf_counter()
         try:
-            fields["updated_at"] = datetime.utcnow()
+            fields["updated_at"] = datetime.now(timezone.utc)
             doc = self._collection.find_one_and_update(
                 {"_id": entity_id},
                 {"$set": fields},

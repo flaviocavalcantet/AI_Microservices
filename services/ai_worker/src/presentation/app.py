@@ -1,6 +1,6 @@
 """HTTP probe application for ai-worker."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import Flask, current_app, jsonify
 
@@ -95,7 +95,7 @@ def _payload(status: str, **extra) -> dict:
     payload = {
         "status": status,
         "service": current_app.config.get("SERVICE_NAME", "ai_worker"),
-        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
     }
     payload.update(extra)
     return payload

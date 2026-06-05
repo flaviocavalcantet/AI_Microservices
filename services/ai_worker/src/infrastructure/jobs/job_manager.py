@@ -10,7 +10,7 @@ Manages the lifecycle of async jobs:
 
 import uuid
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field, asdict
 from enum import Enum
@@ -36,7 +36,7 @@ class Job:
     payload: Dict[str, Any]
     result: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     model_id: Optional[str] = None
@@ -87,7 +87,7 @@ class JobManager:
         self.jobs: Dict[str, Job] = {}
         self.retention_days = retention_days
         self.cleanup_interval_hours = cleanup_interval_hours
-        self.last_cleanup = datetime.utcnow()
+        self.last_cleanup = datetime.now(timezone.utc)
         
         logger.info(f"JobManager initialized - retention: {retention_days} days, "
                    f"cleanup interval: {cleanup_interval_hours} hours")
@@ -172,8 +172,7 @@ class JobManager:
             return False
         
         job.status = JobStatus.RUNNING
-        job.started_at = datetime.utcnow()
-        logger.info(f"Job started: {job_id}")
+        job.started_at = datetime.now(timezone.utc)
         return True
     
     def complete_job(self, job_id: str, result: Dict[str, Any]) -> bool:
@@ -198,7 +197,7 @@ class JobManager:
         
         job.status = JobStatus.COMPLETED
         job.result = result
-        job.completed_at = datetime.utcnow()
+        job.completed_at = datetime.now(timezone.utc)
         duration_ms = (job.completed_at - (job.started_at or job.created_at)).total_seconds() * 1000
         logger.info(f"Job completed: {job_id} (duration: {duration_ms:.0f}ms)")
         return True
@@ -225,7 +224,7 @@ class JobManager:
         
         job.status = JobStatus.FAILED
         job.error = error
-        job.completed_at = datetime.utcnow()
+        job.completed_at = datetime.now(timezone.utc)
         logger.error(f"Job failed: {job_id} - {error}")
         return True
     
@@ -249,7 +248,7 @@ class JobManager:
             return False
         
         job.status = JobStatus.CANCELLED
-        job.completed_at = datetime.utcnow()
+        job.completed_at = datetime.now(timezone.utc)
         logger.info(f"Job cancelled: {job_id}")
         return True
     
@@ -292,10 +291,10 @@ class JobManager:
         job.status = status
         
         if status == JobStatus.RUNNING and not job.started_at:
-            job.started_at = datetime.utcnow()
+            job.started_at = datetime.now(timezone.utc)
         
         if status in [JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED]:
-            job.completed_at = datetime.utcnow()
+            job.completed_at = datetime.now(timezone.utc)
         
         if result is not None:
             job.result = result
@@ -308,7 +307,7 @@ class JobManager:
     
     def _cleanup_if_needed(self):
         """Cleanup old completed jobs"""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         if (now - self.last_cleanup).total_seconds() < (self.cleanup_interval_hours * 3600):
             return
         
@@ -325,7 +324,7 @@ class JobManager:
         Returns:
             Number of jobs cleaned up
         """
-        cutoff_date = datetime.utcnow() - timedelta(days=retention_days)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=retention_days)
         jobs_to_delete = [
             job_id for job_id, job in self.jobs.items()
             if job.status in [JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED]

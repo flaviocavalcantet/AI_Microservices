@@ -8,7 +8,7 @@ error wrapping without any real MongoDB I/O.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, PropertyMock, call, patch
 
 import pytest
@@ -218,7 +218,7 @@ class TestToEntity:
         doc = {
             "_id": "uid", "provider": "github", "provider_user_id": "p1",
             "email": "x@x.com", "display_name": "X",
-            "is_active": True, "created_at": datetime.utcnow(),
+            "is_active": True, "created_at": datetime.now(timezone.utc),
         }
         user = repo._to_entity(doc)
         assert user.roles == ["user"]
@@ -229,7 +229,7 @@ class TestToEntity:
         doc = {
             "_id": "uid2", "provider": "github", "provider_user_id": "p2",
             "email": "y@y.com", "display_name": "Y",
-            "created_at": datetime.utcnow(),
+            "created_at": datetime.now(timezone.utc),
         }
         user = repo._to_entity(doc)
         assert user.is_active is True
@@ -241,7 +241,7 @@ class TestToEntity:
             "_id": "uid3", "provider": "google", "provider_user_id": "p3",
             "email": "z@z.com", "display_name": "Z",
             "avatar_url": None, "is_active": True,
-            "created_at": datetime.utcnow(),
+            "created_at": datetime.now(timezone.utc),
         }
         user = repo._to_entity(doc)
         assert user.avatar_url is None

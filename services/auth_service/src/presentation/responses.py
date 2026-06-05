@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 from flask import g, jsonify
@@ -23,7 +23,7 @@ def success_response(
         "status": "success",
         "code": code,
         "data": data,
-        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
     }
     cid = _correlation_id()
     if cid:
@@ -49,7 +49,7 @@ def error_response(
             "message": message,
             "details": details or {},
         },
-        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
     }
     cid = _correlation_id()
     if cid:

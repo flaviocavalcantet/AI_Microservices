@@ -9,7 +9,7 @@ from __future__ import annotations
 import secrets
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 
@@ -48,7 +48,7 @@ class RefreshToken:
         """
         raw_token = secrets.token_urlsafe(64)
         token_hash = cls._hash_token(raw_token)
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         entity = cls(
             id=str(uuid.uuid4()),
@@ -77,20 +77,20 @@ class RefreshToken:
     def is_valid(self) -> bool:
         return (
             self.revoked_at is None
-            and self.expires_at > datetime.utcnow()
+            and self.expires_at > datetime.now(timezone.utc)
         )
 
     def mark_used(self, replaced_by_id: str) -> None:
-        self.used_at = datetime.utcnow()
+        self.used_at = datetime.now(timezone.utc)
         self.replaced_by_id = replaced_by_id
 
     def revoke(self, reason: str = "explicit_revocation") -> None:
-        self.revoked_at = datetime.utcnow()
+        self.revoked_at = datetime.now(timezone.utc)
         self.revoked_reason = reason
 
     @property
     def is_expired(self) -> bool:
-        return self.expires_at <= datetime.utcnow()
+        return self.expires_at <= datetime.now(timezone.utc)
 
     @property
     def is_revoked(self) -> bool:

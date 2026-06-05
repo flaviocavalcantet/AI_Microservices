@@ -11,6 +11,7 @@ Covers:
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -48,7 +49,7 @@ def _token(user_id: str, roles: list[str]) -> str:
         display_name=user_id,
         roles=roles,
         is_active=True,
-        created_at=__import__("datetime").datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
     )
     access, _ = svc.issue_access_token(user, session_id="sess-test")
     return access

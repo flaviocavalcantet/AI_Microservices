@@ -1,6 +1,6 @@
 """Structured API error handling for auth-service."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 from typing import Any, Dict
 
@@ -37,7 +37,7 @@ class APIError(Exception):
                 "message": self.message,
                 "details": self.details,
             },
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         }
         cid = getattr(g, "correlation_id", None) or getattr(g, "request_id", None)
         if cid:

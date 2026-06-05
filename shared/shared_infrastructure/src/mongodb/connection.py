@@ -116,12 +116,16 @@ class MongoMetrics:
 
     # ── Computed ──────────────────────────────────────────────────────────
 
+    def _avg_latency_ms_unlocked(self) -> Optional[float]:
+        """Compute avg latency without acquiring the lock (caller must hold it)."""
+        if self._latency_count == 0:
+            return None
+        return round(self.total_latency_ms / self._latency_count, 2)
+
     @property
     def avg_latency_ms(self) -> Optional[float]:
         with self._lock:
-            if self._latency_count == 0:
-                return None
-            return round(self.total_latency_ms / self._latency_count, 2)
+            return self._avg_latency_ms_unlocked()
 
     def to_dict(self) -> Dict:
         with self._lock:
@@ -132,7 +136,7 @@ class MongoMetrics:
                 "reconnect_attempts": self.reconnect_attempts,
                 "total_operations": self.total_operations,
                 "failed_operations": self.failed_operations,
-                "avg_latency_ms": self.avg_latency_ms,
+                "avg_latency_ms": self._avg_latency_ms_unlocked(),
                 "connected_at": (
                     self.connected_at.isoformat() if self.connected_at else None
                 ),

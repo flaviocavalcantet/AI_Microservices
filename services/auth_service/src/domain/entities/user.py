@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 
 
@@ -50,13 +50,13 @@ class User:
             display_name=display_name,
             roles=roles or ["user"],
             is_active=True,
-            created_at=datetime.utcnow(),
-            last_login_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
+            last_login_at=datetime.now(timezone.utc),
             avatar_url=avatar_url,
         )
 
     def record_login(self) -> None:
-        self.last_login_at = datetime.utcnow()
+        self.last_login_at = datetime.now(timezone.utc)
 
     def add_role(self, role: str) -> None:
         if role not in self.roles:

@@ -29,7 +29,7 @@ checks are performed inside each handler using _assert_owner_or_admin().
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import Blueprint, current_app, g, jsonify, request
 
@@ -112,7 +112,7 @@ def _format_response(success: bool, data=None, error=None, status="success", cod
     payload = {
         "status": status,
         "code": code,
-        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
     }
     if data is not None:
         payload["data"] = data

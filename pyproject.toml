@@ -2,6 +2,12 @@
 testpaths = ["tests"]
 addopts = "-v --tb=short"
 asyncio_mode = "auto"
+markers = [
+    "unit: fast, isolated unit tests (no external services)",
+    "integration: tests that require external services (database, broker, etc.)",
+    "mongodb: tests that exercise MongoDB code paths",
+    "e2e: end-to-end tests that exercise the full stack",
+]
 
 [tool.coverage.run]
 source = ["ai_engine"]

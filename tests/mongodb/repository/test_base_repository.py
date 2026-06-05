@@ -8,7 +8,7 @@ the metrics-forwarding behaviour — all without any real MongoDB I/O.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 from unittest.mock import MagicMock, PropertyMock, call, patch
 
@@ -40,7 +40,7 @@ class _ItemRepository(MongoBaseRepository[_Item]):
         self._ensure_calls += 1
 
     def _to_document(self, entity: _Item) -> Dict[str, Any]:
-        return {"_id": entity.id, "name": entity.name, "created_at": datetime.utcnow()}
+        return {"_id": entity.id, "name": entity.name, "created_at": datetime.now(timezone.utc)}
 
     def _to_entity(self, document: Dict[str, Any]) -> _Item:
         return _Item(id=document["_id"], name=document["name"])
