@@ -260,9 +260,10 @@ def get_settings(env: Optional[str] = None) -> SharedSettings:
     }
     
     if env not in settings_map:
+        valid_envs = sorted(settings_map.keys())
         raise ValueError(
             f"Unknown environment: {env}. "
-            f"Valid options: {', '.join(set(settings_map.values()))}"
+            f"Valid options: {', '.join(valid_envs)}"
         )
     
     settings_class = settings_map[env]

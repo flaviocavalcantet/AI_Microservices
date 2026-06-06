@@ -6,13 +6,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential gcc && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
+COPY shared/shared_config/requirements.txt ./shared_config_requirements.txt
+COPY shared/shared_auth/requirements.txt ./shared_auth_requirements.txt
 COPY services/notification_service/requirements.txt ./notification_service/
 
 RUN python -m venv /opt/venv && \
     . /opt/venv/bin/activate && \
     pip install --no-cache-dir --upgrade pip setuptools wheel && \
     pip install --no-cache-dir -r requirements.txt && \
-    pip install --no-cache-dir -r ./notification_service/requirements.txt
+    pip install --no-cache-dir -r ./notification_service/requirements.txt && \
+    pip install --no-cache-dir -r shared_config_requirements.txt && \
+    pip install --no-cache-dir -r shared_auth_requirements.txt
 
 FROM python:3.11-slim-bookworm
 
