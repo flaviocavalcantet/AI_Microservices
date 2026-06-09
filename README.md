@@ -8,15 +8,23 @@ The repo has two complementary layers:
 
 ---
 
-## Quick start (standalone `ai_engine`)
-
-The fastest way to see the system in action — no Docker or RabbitMQ required.
+## Full platform (all microservices)
 
 ```bash
-pip install -r requirements.txt
-export MONGO_URI=mongodb://localhost:27017/ai_engine
-export FLASK_APP=app:create_app
-flask run
+# 1. Copy and configure environment
+cp config/environments/.env.development .env
+
+# 2. Start all services
+docker-compose up -d
+
+# 3. View logs
+docker-compose logs -f
+
+# 4. Run tests
+pytest
+
+# 5. Stop
+docker-compose down
 ```
 
 ### Submit a job and poll the result
@@ -42,27 +50,6 @@ curl http://localhost:5000/api/ai/jobs/<job_id>
 ```
 
 Jobs are executed asynchronously via a `ThreadPoolExecutor` (4 workers by default). Status transitions: `PENDING → RUNNING → COMPLETED | FAILED`.
-
----
-
-## Full platform (all microservices)
-
-```bash
-# 1. Copy and configure environment
-cp config/environments/.env.development .env
-
-# 2. Start all services
-docker-compose up -d
-
-# 3. View logs
-docker-compose logs -f
-
-# 4. Run tests
-pytest
-
-# 5. Stop
-docker-compose down
-```
 
 ### Service ports
 
