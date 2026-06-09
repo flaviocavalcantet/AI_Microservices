@@ -226,6 +226,8 @@ services:
       CELERY_RESULT_BACKEND: redis://redis:6379/0
       # URI for the api-service database so the task can update job status
       API_SERVICE_MONGODB_URI: mongodb://admin:admin123@mongodb:27017/api_service?authSource=admin
+      # Persistent HuggingFace model cache directory
+      HF_HOME: /.hf_cache
     depends_on:
       mongodb:
         condition: service_healthy
@@ -235,6 +237,7 @@ services:
         condition: service_healthy
     volumes:
       - ./:/app
+      - hf_model_cache:/.hf_cache
     networks:
       - ai_network
     healthcheck:
@@ -288,6 +291,7 @@ volumes:
   mongodb_data:
   rabbitmq_data:
   redis_data:
+  hf_model_cache:
 
 
 # SPIRE workload identity (Docker, optional):

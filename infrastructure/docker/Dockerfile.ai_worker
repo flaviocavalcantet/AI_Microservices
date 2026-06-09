@@ -39,8 +39,8 @@ ENV PATH="/opt/venv/bin:$PATH" \
 
 RUN useradd -m -u 1000 appuser
 
-RUN mkdir -p /tmp/ai_worker_cache && \
-    chown appuser:appuser /tmp/ai_worker_cache
+RUN mkdir -p /.hf_cache && \
+    chown -R appuser:appuser /.hf_cache
 
 COPY --chown=appuser:appuser . .
 
@@ -50,6 +50,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:5000/api/v1/ai/health || exit 1
 
 EXPOSE 5000
-VOLUME ["/tmp/ai_worker_cache"]
 
 CMD ["python", "-m", "src.main"]

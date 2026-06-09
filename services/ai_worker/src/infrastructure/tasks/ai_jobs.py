@@ -39,7 +39,7 @@ from typing import Any, Dict
 from ..messaging.celery_app import celery
 from ..jobs.job_manager import JobManager
 from ..messaging.event_publisher import JobEventPublisher
-from ..workloads.placeholder_runner import PlaceholderWorkloadRunner
+from ..workloads.runner_registry import WorkloadRunnerRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -179,7 +179,8 @@ def execute_ai_job(self, job_payload: Dict[str, Any]) -> Dict[str, Any]:
     # ------------------------------------------------------------------
     # Execute workload
     # ------------------------------------------------------------------
-    runner = PlaceholderWorkloadRunner()
+    registry = WorkloadRunnerRegistry()
+    runner = registry.get(job_type)
     try:
         result = runner.run(input_data)
 
