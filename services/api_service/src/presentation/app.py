@@ -138,9 +138,10 @@ def create_app(config: Config = None, container: ServiceContainer = None) -> Fla
         _setup_swagger(app, config)
     
     # Setup MongoDB cleanup on app shutdown
-    @app.teardown_appcontext
-    def cleanup_mongodb(exc=None):
-        """Gracefully close MongoDB connection on shutdown."""
+    import atexit
+
+    def cleanup_mongodb():
+        """Gracefully close MongoDB connection on process exit."""
         try:
             mongo_manager = container.resolve("mongo_manager")
             if mongo_manager:
@@ -148,6 +149,8 @@ def create_app(config: Config = None, container: ServiceContainer = None) -> Fla
                 logger.info("MongoDB connection closed gracefully")
         except Exception as e:
             logger.warning(f"Error closing MongoDB connection: {e}")
+
+    atexit.register(cleanup_mongodb)
     
     logger.info(
         f"Flask application created successfully",

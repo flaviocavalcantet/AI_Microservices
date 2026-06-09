@@ -126,7 +126,7 @@ services:
       JWT_SECRET_KEY: dev-secret-key-change-in-production-32chars
       JWT_ISSUER: auth_service
       JWT_AUDIENCE: ai_platform
-      JWT_AUTH_ENABLED: "true"
+      JWT_AUTH_ENABLED: "false"
       JWT_AUTH_REQUIRED: "false"
       SPIRE_ENABLED: "false"
       SPIRE_WORKLOAD_ID: spiffe://ai-platform.local/workload/api-service
