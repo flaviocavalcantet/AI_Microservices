@@ -224,7 +224,11 @@ services:
       PYTHONPATH: /app
       CELERY_BROKER_URL: amqp://appuser:apppass123@rabbitmq:5672/
       CELERY_RESULT_BACKEND: redis://redis:6379/0
+      # URI for the api-service database so the task can update job status
+      API_SERVICE_MONGODB_URI: mongodb://admin:admin123@mongodb:27017/api_service?authSource=admin
     depends_on:
+      mongodb:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
       redis:

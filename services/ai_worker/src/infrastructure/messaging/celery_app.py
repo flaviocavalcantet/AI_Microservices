@@ -18,7 +18,10 @@ def create_celery_app(config: Config = None) -> Celery:
         "ai_worker",
         broker=config.CELERY_BROKER_URL,
         backend=config.CELERY_RESULT_BACKEND,
-        include=["services.ai_worker.src.infrastructure.tasks.health"],
+        include=[
+            "services.ai_worker.src.infrastructure.tasks.health",
+            "services.ai_worker.src.infrastructure.tasks.ai_jobs",
+        ],
     )
 
     app.conf.update(

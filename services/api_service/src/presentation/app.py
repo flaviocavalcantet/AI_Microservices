@@ -17,7 +17,7 @@ from services.api_service.src.presentation.routes.v1.ai.controller import ai_bp
 
 # Import repositories and use cases
 from services.api_service.src.infrastructure.persistence.mongodb.job_repository import MongoJobRepository
-from services.api_service.src.infrastructure.external.ai_worker_client import AIWorkerClient
+from services.api_service.src.infrastructure.messaging import RabbitMQJobDispatcher
 from services.api_service.src.domain.entities.job import Job
 from services.api_service.src.application.use_cases.job import (
     CreateJobUseCase,
@@ -235,32 +235,26 @@ def _register_repositories_and_use_cases(container: ServiceContainer, config: Co
         # TODO: Implement real event publisher
         container.register_instance("event_publisher", None)
         logger.debug("Registered event_publisher (None/placeholder)")
-        
-        # Register AI Worker Client for async job execution
-        ai_worker_url = container.resolve("config").AI_WORKER_URL
-        ai_worker_timeout = container.resolve("config").__dict__.get("AI_WORKER_TIMEOUT_SECONDS", 300)
-        ai_worker_poll_interval = container.resolve("config").__dict__.get("AI_WORKER_POLL_INTERVAL_SECONDS", 2)
-        
+
+        # Register RabbitMQ job dispatcher — api-service acts as a pure
+        # producer; no Celery worker runs inside api-service.
+        rabbitmq_url = config.RABBITMQ_URL
         container.register(
-            "ai_worker_client",
-            lambda: AIWorkerClient(
-                base_url=ai_worker_url,
-                timeout_seconds=ai_worker_timeout,
-                poll_interval_seconds=ai_worker_poll_interval
-            ),
-            singleton=True
+            "job_dispatcher",
+            lambda: RabbitMQJobDispatcher(broker_url=rabbitmq_url),
+            singleton=True,
         )
-        logger.debug(f"Registered ai_worker_client: {ai_worker_url}")
-        
+        logger.debug("Registered job_dispatcher (RabbitMQJobDispatcher, broker: %s)", rabbitmq_url)
+
         # Register Job Use Cases
         container.register(
             "create_job_use_case",
             lambda: CreateJobUseCase(
                 repository=container.resolve("job_repository"),
                 event_publisher=container.resolve("event_publisher"),
-                ai_worker_client=container.resolve("ai_worker_client"),
+                job_dispatcher=container.resolve("job_dispatcher"),
             ),
-            singleton=True
+            singleton=True,
         )
         logger.debug("Registered create_job_use_case")
         
@@ -376,11 +370,11 @@ def _register_testing_repositories_and_use_cases(container: ServiceContainer) ->
     container.register_instance("database", None)
     container.register_instance("job_repository", job_repository)
     container.register_instance("event_publisher", None)
-    container.register_instance("ai_worker_client", None)
+    container.register_instance("job_dispatcher", None)
 
     container.register(
         "create_job_use_case",
-        lambda: CreateJobUseCase(repository=job_repository, event_publisher=None, ai_worker_client=None),
+        lambda: CreateJobUseCase(repository=job_repository, event_publisher=None, job_dispatcher=None),
         singleton=True,
     )
     container.register(

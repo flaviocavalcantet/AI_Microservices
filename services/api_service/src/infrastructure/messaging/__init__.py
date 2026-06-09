@@ -1,3 +1,5 @@
 # Messaging subpackage initializer
 
-__all__ = []
+from .job_dispatcher import RabbitMQJobDispatcher
+
+__all__ = ["RabbitMQJobDispatcher"]
