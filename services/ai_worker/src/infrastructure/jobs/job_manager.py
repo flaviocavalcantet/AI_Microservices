@@ -16,6 +16,8 @@ from dataclasses import dataclass, field, asdict
 from enum import Enum
 import json
 
+from ..messaging.event_publisher import JobEventPublisher
+
 logger = logging.getLogger(__name__)
 
 
@@ -76,19 +78,22 @@ class JobManager:
     Future: Can be extended to use MongoDB or persistent queue.
     """
     
-    def __init__(self, retention_days: int = 7, cleanup_interval_hours: int = 24):
+    def __init__(self, retention_days: int = 7, cleanup_interval_hours: int = 24,
+                 event_publisher: Optional[JobEventPublisher] = None):
         """
         Initialize Job Manager
-        
+
         Args:
             retention_days: How many days to keep completed jobs
             cleanup_interval_hours: How often to cleanup old jobs
+            event_publisher: Optional publisher for job lifecycle events
         """
         self.jobs: Dict[str, Job] = {}
         self.retention_days = retention_days
         self.cleanup_interval_hours = cleanup_interval_hours
         self.last_cleanup = datetime.now(timezone.utc)
-        
+        self.event_publisher = event_publisher or JobEventPublisher()
+
         logger.info(f"JobManager initialized - retention: {retention_days} days, "
                    f"cleanup interval: {cleanup_interval_hours} hours")
     
@@ -200,6 +205,7 @@ class JobManager:
         job.completed_at = datetime.now(timezone.utc)
         duration_ms = (job.completed_at - (job.started_at or job.created_at)).total_seconds() * 1000
         logger.info(f"Job completed: {job_id} (duration: {duration_ms:.0f}ms)")
+        self.event_publisher.publish_job_completed(job_id, result)
         return True
     
     def fail_job(self, job_id: str, error: str) -> bool:
@@ -226,6 +232,7 @@ class JobManager:
         job.error = error
         job.completed_at = datetime.now(timezone.utc)
         logger.error(f"Job failed: {job_id} - {error}")
+        self.event_publisher.publish_job_failed(job_id, error)
         return True
     
     def cancel_job(self, job_id: str) -> bool:

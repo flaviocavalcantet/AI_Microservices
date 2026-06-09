@@ -32,6 +32,9 @@ def create_celery_app(config: Config = None) -> Celery:
         task_time_limit=config.CELERY_TASK_TIME_LIMIT_SECONDS,
         task_track_started=True,
         broker_connection_retry_on_startup=True,
+        task_routes={
+            "notification_service.events.consume": {"queue": "notifications.default"},
+        },
     )
     return app
 

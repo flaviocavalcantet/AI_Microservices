@@ -15,6 +15,7 @@ from ..application.use_cases.oauth_login import OAuthLoginUseCase
 from ..application.use_cases.refresh_token import RefreshTokenUseCase
 from ..application.use_cases.token_ops import RevokeTokenUseCase, ValidateTokenUseCase
 from ..infrastructure.events.noop_publisher import NoOpEventPublisher
+from ..infrastructure.events.rabbitmq_publisher import RabbitMQEventPublisher
 from ..infrastructure.oauth.github_provider import GitHubOAuthProvider
 from ..infrastructure.repositories.in_memory_refresh_token_repository import (
     InMemoryRefreshTokenRepository,
@@ -120,7 +121,11 @@ def _register_auth_infrastructure(container: ServiceContainer, config: Config) -
     container.register(
         "refresh_token_repository", InMemoryRefreshTokenRepository, singleton=True
     )
-    container.register("event_publisher", NoOpEventPublisher, singleton=True)
+    container.register(
+        "event_publisher",
+        lambda: RabbitMQEventPublisher(broker_url=config.RABBITMQ_URL),
+        singleton=True,
+    )
     container.register(
         "oauth_state_store",
         lambda: InMemoryOAuthStateStore(ttl_minutes=config.OAUTH_STATE_TTL_MINUTES),
