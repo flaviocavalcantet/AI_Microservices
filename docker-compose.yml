@@ -89,6 +89,8 @@ services:
       - "spire.service=auth-service"
     ports:
       - "5001:5000"
+    env_file:
+      - .env
     environment:
       PYTHONPATH: /app
       FLASK_ENV: development
