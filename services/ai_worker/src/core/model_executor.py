@@ -15,8 +15,6 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 from dataclasses import dataclass, field
 from datetime import datetime
-import numpy as np
-
 logger = logging.getLogger(__name__)
 
 

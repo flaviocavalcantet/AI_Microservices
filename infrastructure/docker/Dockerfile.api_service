@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy dependency files
-COPY requirements.txt .
+COPY requirements*.txt .
 COPY shared/shared_config/requirements.txt ./shared_config_requirements.txt
 COPY shared/shared_auth/requirements.txt ./shared_auth_requirements.txt
 COPY services/api_service/requirements.txt ./api_service/
@@ -51,12 +51,13 @@ ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONDONTWRITEBYTECODE=1 \
     FLASK_APP="services.api_service.main:create_app"
 
-# Copy application code
-COPY . .
-
 # Create non-root user for security
-RUN useradd -m -u 1000 appuser && \
-    chown -R appuser:appuser /app
+RUN useradd -m -u 1000 appuser
+
+# Copy application code with correct ownership
+COPY --chown=appuser:appuser . .
+
+# Switch to non-root user
 USER appuser
 
 # Health check

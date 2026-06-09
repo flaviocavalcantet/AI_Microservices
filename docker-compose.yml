@@ -211,6 +211,8 @@ services:
     build:
       context: .
       dockerfile: infrastructure/docker/Dockerfile.ai_worker
+      args:
+        REQUIREMENTS_FILE: requirements-ai-worker.txt
     container_name: ai_platform_celery_worker_ai
     working_dir: /app
     command: >

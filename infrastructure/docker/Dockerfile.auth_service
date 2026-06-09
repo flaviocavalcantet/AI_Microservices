@@ -5,7 +5,7 @@ WORKDIR /build
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential gcc && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
+COPY requirements*.txt .
 COPY shared/shared_config/requirements.txt ./shared_config_requirements.txt
 COPY shared/shared_auth/requirements.txt ./shared_auth_requirements.txt
 COPY services/auth_service/requirements.txt ./auth_service/
@@ -34,9 +34,12 @@ ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONDONTWRITEBYTECODE=1 \
     FLASK_APP="src.presentation.app:create_app"
 
-COPY . .
 
-RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+RUN useradd -m -u 1000 appuser 
+
+# Copy application code with correct ownership
+COPY --chown=appuser:appuser . .
+
 USER appuser
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \

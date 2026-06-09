@@ -8,7 +8,6 @@ from shared.shared_logging import register_flask_request_logging
 
 from ..config import Config, get_config
 from ..container import ServiceContainer, init_container
-from ..core.model_executor import ModelExecutor
 from ..infrastructure.capabilities.system_detector import SystemCapabilityDetector
 from ..infrastructure.jobs.job_manager import JobManager
 from ..infrastructure.messaging.celery_app import create_celery_app
@@ -52,14 +51,6 @@ def _register_worker_infrastructure(container: ServiceContainer, config: Config)
     # Register job manager for async job tracking
     container.register("job_manager", lambda: JobManager(), singleton=True)
     
-    # Register model executor
-    model_path = config.__dict__.get("AI_WORKER_MODEL_PATH", "/app/models")
-    enable_gpu = config.__dict__.get("AI_WORKER_GPU_ENABLED", True)
-    container.register(
-        "model_executor",
-        lambda: ModelExecutor(model_path, enable_gpu=enable_gpu),
-        singleton=True
-    )
 
 
 def _register_routes(app: Flask, container: ServiceContainer) -> None:

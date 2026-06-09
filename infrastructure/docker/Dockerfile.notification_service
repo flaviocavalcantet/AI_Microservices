@@ -5,7 +5,7 @@ WORKDIR /build
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential gcc && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
+COPY requirements*.txt .
 COPY shared/shared_config/requirements.txt ./shared_config_requirements.txt
 COPY shared/shared_auth/requirements.txt ./shared_auth_requirements.txt
 COPY services/notification_service/requirements.txt ./notification_service/
@@ -33,9 +33,12 @@ ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 
 
-COPY . .
 
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+
+# Copy application code with correct ownership
+COPY --chown=appuser:appuser . .
+
 USER appuser
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
