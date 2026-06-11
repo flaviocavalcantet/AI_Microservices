@@ -36,10 +36,20 @@ def _sentiment_factory() -> WorkloadRunner:
     return SentimentWorkloadRunner()
 
 
+def _summarization_factory() -> WorkloadRunner:
+    from .summarization_runner import SummarizationWorkloadRunner
+    return SummarizationWorkloadRunner()
+
+
+def _dataset_profiling_factory() -> WorkloadRunner:
+    from .dataset_profiling_runner import DatasetProfilingWorkloadRunner
+    return DatasetProfilingWorkloadRunner()
+
+
 _RUNNER_FACTORIES: Dict[str, Callable[[], WorkloadRunner]] = {
     "sentiment_analysis": _sentiment_factory,
-    # "summarization":      _summarization_factory,
-    # "dataset_profiling":  _dataset_profiling_factory,
+    "summarization":      _summarization_factory,
+    "dataset_profiling":  _dataset_profiling_factory,
 }
 
 

@@ -79,7 +79,19 @@ class IUserRepository(ABC):
     def find_by_email(self, email: str) -> Optional[User]: ...
 
     @abstractmethod
+    def find_by_username(self, username: str) -> Optional[User]:
+        """Look up a local-auth user by username."""
+
+    @abstractmethod
     def save(self, user: User) -> User: ...
+
+    @abstractmethod
+    def list_all(self) -> List[User]:
+        """Return all users (admin use only)."""
+
+    @abstractmethod
+    def update_roles(self, user_id: str, roles: List[str]) -> User:
+        """Replace the roles list for *user_id* and return the updated user."""
 
 
 class IRefreshTokenRepository(ABC):

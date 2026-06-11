@@ -1,14 +1,14 @@
-"""infrastructure/persistence/mongodb/user_repository.py  (auth_service)
-
-Production MongoDB implementation of IUserRepository.
+"""MongoDB implementation of IUserRepository.
 
 Document schema (collection: users):
 {
-    "_id":               "uuid-string",          # = User.id
-    "provider":          "github",
-    "provider_user_id":  "12345",
+    "_id":               "uuid-string",
+    "provider":          "github" | "local",
+    "provider_user_id":  "12345"  | "<username>",
     "email":             "user@example.com",
     "display_name":      "John Doe",
+    "username":          "johndoe",          # local-auth users only
+    "password_hash":     "$2b$12$...",        # local-auth users only
     "roles":             ["user"],
     "is_active":         true,
     "avatar_url":        "https://…",
@@ -18,22 +18,23 @@ Document schema (collection: users):
 }
 
 Indexes:
-  1. Unique: (provider, provider_user_id)  — primary OAuth identity lookup
-  2. Unique: email                          — secondary lookup (sparse for multi-provider)
-  3. is_active, created_at                 — admin / list queries
+  1. Unique: (provider, provider_user_id)  — primary identity lookup
+  2. Unique sparse: email                  — secondary lookup
+  3. is_active, created_at                 — admin listing
 """
 
 from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from pymongo import ASCENDING, IndexModel
 from pymongo.database import Database
 
 from services.auth_service.src.domain.entities.user import User
 from services.auth_service.src.application.ports.interfaces import IUserRepository
+from services.auth_service.src.domain.exceptions.auth_errors import UserNotFoundError
 from shared.shared_infrastructure.src.mongodb.base_repository import (
     MongoBaseRepository,
     RepositoryError,
@@ -50,30 +51,23 @@ class MongoUserRepository(MongoBaseRepository[User], IUserRepository):
     def __init__(self, database: Database, connection_manager=None) -> None:
         super().__init__(database, connection_manager=connection_manager)
 
-    # ── Index declaration ────────────────────────────────────────────────────
+    # ── Indexes ──────────────────────────────────────────────────────────────
 
     def ensure_indexes(self) -> None:
-        """Declare all indexes for the users collection.
-
-        Idempotent — safe to call on every startup.
-        """
         indexes = [
-            # Primary OAuth identity — unique composite
             IndexModel(
                 [("provider", ASCENDING), ("provider_user_id", ASCENDING)],
                 unique=True,
                 name="idx_provider_identity",
                 background=True,
             ),
-            # Email lookup — unique, case-insensitive collation
             IndexModel(
                 [("email", ASCENDING)],
                 unique=True,
                 name="idx_email",
                 background=True,
-                collation={"locale": "en", "strength": 2},  # case-insensitive
+                collation={"locale": "en", "strength": 2},
             ),
-            # Active-user listing
             IndexModel(
                 [("is_active", ASCENDING), ("created_at", ASCENDING)],
                 name="idx_active_created",
@@ -83,7 +77,7 @@ class MongoUserRepository(MongoBaseRepository[User], IUserRepository):
         self._db[self.COLLECTION_NAME].create_indexes(indexes)
         logger.info("users collection indexes ensured.")
 
-    # ── IUserRepository implementation ───────────────────────────────────────
+    # ── IUserRepository ───────────────────────────────────────────────────────
 
     def find_by_provider(self, provider: str, provider_user_id: str) -> Optional[User]:
         try:
@@ -104,10 +98,42 @@ class MongoUserRepository(MongoBaseRepository[User], IUserRepository):
         except Exception as exc:
             raise RepositoryError(f"find_by_email failed: {exc}") from exc
 
-    # ── Document mapping ─────────────────────────────────────────────────────
+    def find_by_username(self, username: str) -> Optional[User]:
+        """Look up a local-auth user by username (stored as provider_user_id)."""
+        try:
+            doc = self._collection.find_one(
+                {"provider": "local", "provider_user_id": username.lower()},
+            )
+            return self._to_entity(doc) if doc else None
+        except Exception as exc:
+            raise RepositoryError(f"find_by_username failed: {exc}") from exc
+
+    def list_all(self) -> List[User]:
+        try:
+            docs = self._collection.find({}, sort=[("created_at", ASCENDING)])
+            return [self._to_entity(doc) for doc in docs]
+        except Exception as exc:
+            raise RepositoryError(f"list_all failed: {exc}") from exc
+
+    def update_roles(self, user_id: str, roles: List[str]) -> User:
+        try:
+            result = self._collection.find_one_and_update(
+                {"_id": user_id},
+                {"$set": {"roles": roles, "updated_at": datetime.now(timezone.utc)}},
+                return_document=True,
+            )
+            if result is None:
+                raise UserNotFoundError(user_id)
+            return self._to_entity(result)
+        except UserNotFoundError:
+            raise
+        except Exception as exc:
+            raise RepositoryError(f"update_roles failed: {exc}") from exc
+
+    # ── Document mapping ──────────────────────────────────────────────────────
 
     def _to_document(self, entity: User) -> Dict[str, Any]:
-        return {
+        doc: Dict[str, Any] = {
             "_id": entity.id,
             "provider": entity.provider,
             "provider_user_id": entity.provider_user_id,
@@ -118,8 +144,12 @@ class MongoUserRepository(MongoBaseRepository[User], IUserRepository):
             "avatar_url": entity.avatar_url,
             "last_login_at": entity.last_login_at,
             "created_at": entity.created_at,
-            # updated_at is stamped by MongoBaseRepository.save()
         }
+        if entity.username is not None:
+            doc["username"] = entity.username
+        if entity.password_hash is not None:
+            doc["password_hash"] = entity.password_hash
+        return doc
 
     def _to_entity(self, document: Dict[str, Any]) -> User:
         return User(
@@ -133,4 +163,6 @@ class MongoUserRepository(MongoBaseRepository[User], IUserRepository):
             avatar_url=document.get("avatar_url"),
             last_login_at=document.get("last_login_at"),
             created_at=document.get("created_at", datetime.now(timezone.utc)),
+            username=document.get("username"),
+            password_hash=document.get("password_hash"),
         )
